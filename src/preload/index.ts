@@ -1,6 +1,17 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import type { IpcRendererEvent } from 'electron'
 
 const api = {
+  getVersion: () => ipcRenderer.invoke('app:getVersion'),
+  // 업데이트
+  checkUpdate: () => ipcRenderer.invoke('update:check'),
+  getUpdateStatus: () => ipcRenderer.invoke('update:getStatus'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  onUpdateStatus: (cb: (status: unknown) => void) => {
+    const handler = (_e: IpcRendererEvent, status: unknown) => cb(status)
+    ipcRenderer.on('update:status', handler)
+    return () => ipcRenderer.removeListener('update:status', handler)
+  },
   list: () => ipcRenderer.invoke('library:list'),
   getDataDir: () => ipcRenderer.invoke('library:getDataDir'),
   openDataDir: () => ipcRenderer.invoke('library:openDataDir'),

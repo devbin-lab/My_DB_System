@@ -1726,3 +1726,34 @@ button {
   align-items: center;
   gap: 6px;
 }
+
+/* ============ 업데이트 ============ */
+.update-msg {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.update-msg.ok {
+  color: var(--accent);
+}
+
+.update-msg.err {
+  color: var(--danger);
+}
+
+.update-bar {
+  margin-top: 8px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.update-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease-out;
+}

@@ -1,6 +1,13 @@
 appId: com.devbin.mydbsystem
 productName: My DB System
 
+# 자동 업데이트 provider. 빌드 시 app-update.yml과 latest*.yml이 생성되어
+# GitHub 릴리스에서 최신 버전을 찾아 업데이트한다.
+publish:
+  provider: github
+  owner: devbin-lab
+  repo: My_DB_System
+
 directories:
   buildResources: build
   output: dist

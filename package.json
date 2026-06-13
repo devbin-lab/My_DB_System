@@ -13,10 +13,17 @@
     "pack:dir": "npm run build && electron-builder --dir",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
-    "dist:all": "npm run build && electron-builder --win --linux"
+    "dist:all": "npm run build && electron-builder --win --linux",
+    "release:win": "npm run build && electron-builder --win --publish always",
+    "release:linux": "npm run build && electron-builder --linux --publish always"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devbin-lab/My_DB_System.git"
   },
   "dependencies": {
     "better-sqlite3": "^12.10.0",
+    "electron-updater": "^6.8.9",
     "highlight.js": "^11.10.0",
     "papaparse": "^5.4.1",
     "react": "^18.3.1",

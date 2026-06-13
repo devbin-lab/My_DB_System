@@ -3,6 +3,7 @@ import { join, extname, basename, relative, dirname, parse } from 'path'
 import fs from 'fs'
 import crypto from 'crypto'
 import Database from 'better-sqlite3'
+import { registerUpdater } from './updater'
 
 // ---------- 데이터 저장 위치 ----------
 // 저장소 루트(dataDir)는 설정에서 바꿀 수 있다.
@@ -468,6 +469,8 @@ function registerIpc(): void {
     return dataDir
   })
 
+  ipcMain.handle('app:getVersion', () => app.getVersion())
+
   // ----- 첫 실행 온보딩 -----
   ipcMain.handle('app:isOnboarded', () => appConfig.onboarded)
   ipcMain.handle('app:completeOnboarding', () => {
@@ -672,6 +675,7 @@ app.whenReady().then(() => {
   appConfig = loadConfig()
   openStorage(appConfig.storageDir)
   registerIpc()
+  registerUpdater()
   createWindow()
 
   app.on('activate', () => {

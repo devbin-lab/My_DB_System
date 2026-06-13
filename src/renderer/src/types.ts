@@ -40,8 +40,31 @@ export interface ItemLink {
 // 피벗↔피벗 연결도 같은 형태(aId/bId)
 export type PivotLink = ItemLink
 
+export type UpdateState =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'not-available'
+  | 'downloading'
+  | 'downloaded'
+  | 'error'
+  | 'dev'
+
+export interface UpdateStatus {
+  state: UpdateState
+  version?: string
+  notes?: string
+  percent?: number
+  error?: string
+}
+
 export interface Api {
   list: () => Promise<LibraryItem[]>
+  getVersion: () => Promise<string>
+  checkUpdate: () => Promise<UpdateStatus>
+  getUpdateStatus: () => Promise<UpdateStatus>
+  installUpdate: () => Promise<void>
+  onUpdateStatus: (cb: (status: UpdateStatus) => void) => () => void
   getDataDir: () => Promise<string>
   openDataDir: () => Promise<string>
   getStorageDir: () => Promise<string>

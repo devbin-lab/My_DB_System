@@ -1,5 +1,6 @@
-import type { AccentId, Settings, ThemeId } from './types'
-import { IconFolder, IconX } from './Icons'
+import { useEffect, useState } from 'react'
+import type { AccentId, Settings, ThemeId, UpdateStatus } from './types'
+import { IconDownload, IconFolder, IconX } from './Icons'
 
 export const THEMES: {
   id: ThemeId
@@ -19,6 +20,82 @@ export const ACCENTS: { id: AccentId; name: string; color: string }[] = [
   { id: 'amber', name: '앰버', color: '#f59e0b' },
   { id: 'green', name: '그린', color: '#22c55e' }
 ]
+
+// 업데이트 확인/설치 섹션. 메인 프로세스(electron-updater)의 상태를 구독한다.
+function UpdateSection() {
+  const [version, setVersion] = useState('')
+  const [status, setStatus] = useState<UpdateStatus>({ state: 'idle' })
+
+  useEffect(() => {
+    window.api.getVersion().then(setVersion)
+    window.api.getUpdateStatus().then(setStatus)
+    const off = window.api.onUpdateStatus(setStatus)
+    return off
+  }, [])
+
+  const busy = status.state === 'checking' || status.state === 'downloading'
+
+  const message = (): { text: string; tone?: 'ok' | 'err' } => {
+    switch (status.state) {
+      case 'checking':
+        return { text: '업데이트 확인 중…' }
+      case 'available':
+        return { text: `새 버전 v${status.version} 을(를) 내려받는 중…` }
+      case 'downloading':
+        return { text: `새 버전 v${status.version ?? ''} 내려받는 중… ${status.percent ?? 0}%` }
+      case 'downloaded':
+        return { text: `v${status.version} 설치 준비 완료. 재시작하면 적용됩니다.`, tone: 'ok' }
+      case 'not-available':
+        return { text: '최신 버전을 사용 중입니다.', tone: 'ok' }
+      case 'dev':
+        return { text: '개발 모드에서는 업데이트를 확인할 수 없습니다.' }
+      case 'error':
+        return { text: `업데이트 확인 실패: ${status.error ?? '알 수 없는 오류'}`, tone: 'err' }
+      default:
+        return { text: '' }
+    }
+  }
+
+  const msg = message()
+
+  return (
+    <section className="settings-group">
+      <h3>업데이트</h3>
+      <div className="setting-row">
+        <div className="setting-label">
+          현재 버전
+          <small>v{version || '…'}</small>
+        </div>
+        <div className="setting-control">
+          {status.state === 'downloaded' ? (
+            <button className="btn-accent" onClick={() => window.api.installUpdate()}>
+              <IconDownload size={14} />
+              재시작하여 설치
+            </button>
+          ) : (
+            <button
+              className="btn-ghost"
+              disabled={busy}
+              onClick={() => window.api.checkUpdate()}
+            >
+              {busy ? '확인 중…' : '업데이트 확인'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {msg.text && (
+        <p className={`update-msg ${msg.tone ?? ''}`}>{msg.text}</p>
+      )}
+
+      {status.state === 'downloading' && (
+        <div className="update-bar">
+          <span style={{ width: `${status.percent ?? 0}%` }} />
+        </div>
+      )}
+    </section>
+  )
+}
 
 export default function SettingsModal({
   settings,
@@ -122,6 +199,8 @@ export default function SettingsModal({
               </div>
             </div>
           </section>
+
+          <UpdateSection />
         </div>
       </div>
     </div>
