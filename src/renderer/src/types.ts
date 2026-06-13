@@ -47,6 +47,8 @@ export interface Api {
   getStorageDir: () => Promise<string>
   chooseStorageDir: () => Promise<string | null>
   setStorageDir: (dir: string) => Promise<string>
+  isOnboarded: () => Promise<boolean>
+  completeOnboarding: () => Promise<boolean>
   getSettings: () => Promise<Settings>
   setSetting: (key: string, value: unknown) => Promise<Settings>
   importDialog: (pivotId?: string | null) => Promise<LibraryItem[]>

@@ -1,0 +1,52 @@
+appId: com.devbin.mydbsystem
+productName: My DB System
+
+directories:
+  buildResources: build
+  output: dist
+
+# 패키지에 포함할 파일. 빌드 산출물(out)과 package.json만 있으면 되고,
+# 운영 의존성(better-sqlite3 등)은 electron-builder가 자동으로 포함/정리한다.
+files:
+  - out/**
+  - package.json
+  - '!**/*.{ts,map}'
+  - '!{.vscode,src,build,dist}'
+  - '!electron.vite.config.*'
+  - '!{tsconfig.json,electron-builder.yml,README.md,LICENSE}'
+
+# 네이티브 모듈(.node)은 asar 안에서 실행할 수 없으므로 풀어서 넣는다.
+asarUnpack:
+  - '**/*.node'
+  - node_modules/better-sqlite3/**
+
+# 설치/실행 시 네이티브 모듈을 현재 Electron ABI에 맞춰 재빌드한다.
+npmRebuild: true
+
+# ---------- Windows ----------
+win:
+  target:
+    - nsis
+  executableName: my-db-system
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: My DB System
+  artifactName: ${name}-${version}-setup.${ext}
+
+# ---------- Linux ----------
+linux:
+  target:
+    - AppImage
+    - deb
+  maintainer: devbin <devbin0318@gmail.com>
+  category: Utility
+  synopsis: 나만의 데이터 저장 시스템
+  artifactName: ${name}-${version}.${ext}
+
+appImage:
+  artifactName: ${name}-${version}.${ext}

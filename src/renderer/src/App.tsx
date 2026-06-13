@@ -3,6 +3,7 @@ import type { ItemLink, ItemType, LibraryItem, Link, Pivot, Settings } from './t
 import Viewer from './Viewer'
 import GraphView from './GraphView'
 import SettingsModal from './Settings'
+import Onboarding from './Onboarding'
 import {
   IconDownload,
   IconEye,
@@ -80,6 +81,8 @@ export default function App() {
   const [view, setView] = useState<'graph' | 'library'>('graph')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
+  // null = 아직 확인 중, false = 첫 실행(마법사 표시), true = 온보딩 완료
+  const [onboarded, setOnboarded] = useState<boolean | null>(null)
   const [pivots, setPivots] = useState<Pivot[]>([])
   const [links, setLinks] = useState<Link[]>([])
   const [itemLinks, setItemLinks] = useState<ItemLink[]>([])
@@ -117,7 +120,13 @@ export default function App() {
     refresh()
     window.api.getDataDir().then(setDataDir)
     window.api.getSettings().then(setSettings)
+    window.api.isOnboarded().then(setOnboarded)
   }, [refresh])
+
+  const finishOnboarding = async () => {
+    await window.api.completeOnboarding()
+    setOnboarded(true)
+  }
 
   const updateSetting = async (key: keyof Settings, value: unknown) => {
     setSettings(await window.api.setSetting(key, value))
@@ -438,6 +447,17 @@ export default function App() {
           onChangeStorage={changeStorage}
           onOpenStorage={() => window.api.openDataDir()}
           onClose={() => setSettingsOpen(false)}
+        />
+      )}
+
+      {/* 첫 실행 온보딩 마법사 */}
+      {onboarded === false && (
+        <Onboarding
+          settings={settings}
+          storageDir={dataDir}
+          onChange={updateSetting}
+          onChangeStorage={changeStorage}
+          onFinish={finishOnboarding}
         />
       )}
 

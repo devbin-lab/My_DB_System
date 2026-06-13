@@ -7,6 +7,8 @@ const api = {
   getStorageDir: () => ipcRenderer.invoke('storage:get'),
   chooseStorageDir: () => ipcRenderer.invoke('storage:choose'),
   setStorageDir: (dir: string) => ipcRenderer.invoke('storage:set', dir),
+  isOnboarded: () => ipcRenderer.invoke('app:isOnboarded'),
+  completeOnboarding: () => ipcRenderer.invoke('app:completeOnboarding'),
   getSettings: () => ipcRenderer.invoke('settings:getAll'),
   setSetting: (key: string, value: unknown) =>
     ipcRenderer.invoke('settings:set', key, value),

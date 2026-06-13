@@ -16,19 +16,35 @@
 - **테마** — 슬레이트 / 라이트 / 네이비 3종 + 포인트 색상 5종
 - **저장소 위치 지정** — 모든 데이터는 지정한 폴더에 타입별로 정리되어 보관, SQLite 메타데이터
 
+- **첫 실행 마법사** — 설치 후 최초 실행 시 테마·저장 위치·그래프 검색 개수를 단계별로 안내
+
 ## 개발
 
 ```bash
-npm install
-npx electron-rebuild -f -w better-sqlite3   # 네이티브 모듈 리빌드 (최초 1회)
+npm install          # 의존성 설치 + 네이티브 모듈 자동 리빌드(postinstall)
 npm run dev
 ```
 
-## 빌드
+## 빌드 · 배포
+
+`electron-builder`로 설치 파일을 만든다. 산출물은 `dist/`에 생성된다.
 
 ```bash
-npm run build
+# 현재 OS용 설치 파일
+npm run dist:win     # Windows  → dist/my-db-system-<ver>-setup.exe (NSIS 설치 마법사)
+npm run dist:linux   # Linux    → dist/my-db-system-<ver>.AppImage, .deb
+
+npm run pack:dir     # 설치 파일 없이 실행 폴더만(빠른 확인용) → dist/*-unpacked
 ```
+
+> **플랫폼별 빌드 위치**
+> `better-sqlite3`는 네이티브 모듈이라 **실행할 OS에서 빌드**해야 한다.
+> Windows 설치 파일은 Windows에서, Linux(AppImage/deb)는 Linux(또는 WSL/Docker)에서
+> 빌드하는 것을 권장한다. `npm install`의 `postinstall`이 현재 OS·Electron
+> 버전에 맞춰 모듈을 자동으로 다시 빌드한다.
+>
+> 앱 아이콘은 [`build/`](build/README.md)에 `icon.ico`(Windows)·`icon.png`(Linux)를
+> 넣으면 적용된다. 없으면 기본 Electron 아이콘이 쓰인다.
 
 ## 로드맵
 

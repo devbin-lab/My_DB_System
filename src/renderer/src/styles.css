@@ -1582,3 +1582,147 @@ button {
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* ============ 첫 실행 온보딩 ============ */
+.onboard-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fade-in 0.2s ease-out;
+}
+
+.onboard {
+  width: 560px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 64px);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  animation: modal-pop 0.2s ease-out;
+}
+
+.onboard-steps {
+  display: flex;
+  gap: 6px;
+  padding: 18px 22px 4px;
+}
+
+.onboard-step {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  color: var(--text-dim);
+  font-size: 12px;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.onboard-step.on,
+.onboard-step.done {
+  opacity: 1;
+}
+
+.onboard-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.onboard-step.on .onboard-dot {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.onboard-step.done .onboard-dot {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.onboard-step-label {
+  white-space: nowrap;
+}
+
+.onboard-body {
+  padding: 12px 22px;
+  overflow-y: auto;
+  min-height: 280px;
+}
+
+.onboard-pane h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  margin-bottom: 6px;
+}
+
+.onboard-pane h3 {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.onboard-pane h3.mt {
+  margin-top: 18px;
+}
+
+.onboard-desc {
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.onboard-welcome {
+  text-align: center;
+  padding: 24px 8px;
+}
+
+.onboard-welcome h1 {
+  font-size: 22px;
+  margin: 18px 0 12px;
+}
+
+.onboard-welcome p {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.onboard-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: inline-block;
+}
+
+.onboard-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 22px 18px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.onboard-foot .btn-ghost,
+.onboard-foot .btn-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

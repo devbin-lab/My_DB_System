@@ -1,14 +1,18 @@
 import type { AccentId, Settings, ThemeId } from './types'
 import { IconFolder, IconX } from './Icons'
 
-const THEMES: { id: ThemeId; name: string; desc: string; swatch: [string, string, string] }[] =
-  [
-    { id: 'slate', name: '슬레이트', desc: '밝은 다크', swatch: ['#1b1e27', '#272b38', '#e8eaf2'] },
-    { id: 'light', name: '라이트', desc: '밝고 깔끔한', swatch: ['#f5f6f8', '#ffffff', '#1d2230'] },
-    { id: 'navy', name: '네이비', desc: '깊은 청색 다크', swatch: ['#0f1726', '#1c2737', '#e3eaf5'] }
-  ]
+export const THEMES: {
+  id: ThemeId
+  name: string
+  desc: string
+  swatch: [string, string, string]
+}[] = [
+  { id: 'slate', name: '슬레이트', desc: '밝은 다크', swatch: ['#1b1e27', '#272b38', '#e8eaf2'] },
+  { id: 'light', name: '라이트', desc: '밝고 깔끔한', swatch: ['#f5f6f8', '#ffffff', '#1d2230'] },
+  { id: 'navy', name: '네이비', desc: '깊은 청색 다크', swatch: ['#0f1726', '#1c2737', '#e3eaf5'] }
+]
 
-const ACCENTS: { id: AccentId; name: string; color: string }[] = [
+export const ACCENTS: { id: AccentId; name: string; color: string }[] = [
   { id: 'teal', name: '틸', color: '#14b8a6' },
   { id: 'blue', name: '블루', color: '#3b82f6' },
   { id: 'violet', name: '바이올렛', color: '#7c6af2' },

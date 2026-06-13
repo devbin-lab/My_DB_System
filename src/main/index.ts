@@ -22,24 +22,42 @@ function setPaths(dir: string): void {
 
 interface AppConfig {
   storageDir: string
+  onboarded: boolean // 첫 실행 마법사를 끝냈는지 여부
 }
+
+// 앱 전역 설정(메모리 캐시). config.json과 항상 동기화한다.
+let appConfig: AppConfig
 
 function configFilePath(): string {
   return join(app.getPath('userData'), 'config.json')
 }
 
+function defaultConfig(): AppConfig {
+  return { storageDir: join(app.getPath('documents'), 'MyDataSystem'), onboarded: false }
+}
+
 function loadConfig(): AppConfig {
+  const def = defaultConfig()
   try {
     const cfg = JSON.parse(fs.readFileSync(configFilePath(), 'utf8')) as Partial<AppConfig>
-    if (cfg.storageDir) return { storageDir: cfg.storageDir }
+    return {
+      storageDir: cfg.storageDir || def.storageDir,
+      onboarded: cfg.onboarded ?? false
+    }
   } catch {
-    // 설정 파일이 없으면 기본값 사용
+    // 설정 파일이 없으면 기본값 사용(= 첫 실행)
+    return def
   }
-  return { storageDir: join(app.getPath('documents'), 'MyDataSystem') }
 }
 
 function saveConfig(cfg: AppConfig): void {
   fs.writeFileSync(configFilePath(), JSON.stringify(cfg, null, 2), 'utf8')
+}
+
+// 일부 필드만 바꾸면서 나머지(특히 onboarded)는 보존한다.
+function updateConfig(patch: Partial<AppConfig>): void {
+  appConfig = { ...appConfig, ...patch }
+  saveConfig(appConfig)
 }
 
 // ---------- 타입 ----------
@@ -445,9 +463,16 @@ function registerIpc(): void {
       openStorage(oldDir)
       throw err
     }
-    saveConfig({ storageDir: newDir })
+    updateConfig({ storageDir: newDir })
     openStorage(newDir)
     return dataDir
+  })
+
+  // ----- 첫 실행 온보딩 -----
+  ipcMain.handle('app:isOnboarded', () => appConfig.onboarded)
+  ipcMain.handle('app:completeOnboarding', () => {
+    updateConfig({ onboarded: true })
+    return true
   })
 
   ipcMain.handle('settings:getAll', () => settingsStore.getAll())
@@ -644,8 +669,8 @@ function openStorage(dir: string): void {
 }
 
 app.whenReady().then(() => {
-  const cfg = loadConfig()
-  openStorage(cfg.storageDir)
+  appConfig = loadConfig()
+  openStorage(appConfig.storageDir)
   registerIpc()
   createWindow()
 
