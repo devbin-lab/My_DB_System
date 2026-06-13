@@ -46,10 +46,11 @@ nsis:
   artifactName: ${name}-${version}-setup.${ext}
 
 # ---------- Linux ----------
+# AppImage만 빌드한다. AppImage는 단일 파일이라 인앱 자동 업데이트를 지원한다.
+# (deb는 시스템 패키지 관리자가 소유하므로 electron-updater 자동 업데이트가 불가)
 linux:
   target:
     - AppImage
-    - deb
   maintainer: devbin <devbin0318@gmail.com>
   category: Utility
   synopsis: 나만의 데이터 저장 시스템
