@@ -44,6 +44,8 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: My DB System
   artifactName: ${name}-${version}-setup.${ext}
+  # 언인스톨 시 "설정·사용 기록까지 삭제" 여부를 묻는 커스텀 스크립트.
+  include: build/installer.nsh
 
 # ---------- Linux ----------
 # AppImage만 빌드한다. AppImage는 단일 파일이라 인앱 자동 업데이트를 지원한다.

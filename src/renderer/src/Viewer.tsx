@@ -6,6 +6,7 @@ import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark.css'
 import type { LibraryItem } from './types'
 import { IconExternal, IconFolder } from './Icons'
+import { useT } from './i18n'
 
 const MIME: Record<string, string> = {
   '.pdf': 'application/pdf',
@@ -32,6 +33,7 @@ export default function Viewer({
   onTagsChange?: () => void
   readOnly?: boolean
 }) {
+  const t = useT()
   const [text, setText] = useState<string | null>(null)
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [tagInput, setTagInput] = useState(item.tags.join(', '))
@@ -84,11 +86,11 @@ export default function Viewer({
         <div className="viewer-actions">
           <button onClick={() => window.api.openExternal(item.id)}>
             <IconExternal size={13} />
-            <span>외부에서 열기</span>
+            <span>{t('viewer.openExternal')}</span>
           </button>
           <button onClick={() => window.api.showInFolder(item.id)}>
             <IconFolder size={13} />
-            <span>폴더에서 보기</span>
+            <span>{t('viewer.showInFolder')}</span>
           </button>
         </div>
       </header>
@@ -100,7 +102,7 @@ export default function Viewer({
             onChange={(e) => setTagInput(e.target.value)}
             onBlur={saveTags}
             onKeyDown={(e) => e.key === 'Enter' && saveTags()}
-            placeholder="태그 (쉼표로 구분)"
+            placeholder={t('viewer.tagsPlaceholder')}
           />
         </div>
       )}
@@ -129,9 +131,10 @@ export default function Viewer({
 }
 
 function CsvTable({ text }: { text: string }) {
+  const t = useT()
   const result = Papa.parse<string[]>(text.trim(), { skipEmptyLines: true })
   const rows = (result.data as string[][]).slice(0, 1000)
-  if (rows.length === 0) return <div className="empty">빈 CSV 파일입니다.</div>
+  if (rows.length === 0) return <div className="empty">{t('viewer.emptyCsv')}</div>
   const [header, ...body] = rows
   return (
     <div className="csv-wrap">
@@ -154,7 +157,7 @@ function CsvTable({ text }: { text: string }) {
         </tbody>
       </table>
       {(result.data as string[][]).length > 1000 && (
-        <div className="csv-note">처음 1,000행만 표시됩니다.</div>
+        <div className="csv-note">{t('viewer.csvNote')}</div>
       )}
     </div>
   )

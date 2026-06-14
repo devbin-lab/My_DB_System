@@ -10,6 +10,7 @@ import {
   IconTrash,
   IconX
 } from './Icons'
+import { useT } from './i18n'
 
 // 피벗 중심 그래프.
 // 노드: 피벗(허브) + 파일. 엣지: 피벗-파일 연결(links).
@@ -126,6 +127,7 @@ export default function GraphView(props: Props) {
     onDisconnectPivots
   } = props
 
+  const t = useT()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const focusRef = useRef<((id: string) => void) | null>(null)
   // 노드 클릭 시 동작. 연결 모드면 연결, 아니면 열기/피벗진입.
@@ -771,13 +773,13 @@ export default function GraphView(props: Props) {
         <div className="pivot-banner">
           <button className="back-btn" onClick={() => onSelectPivot(null)}>
             <IconArrowLeft size={13} />
-            <span>전체</span>
+            <span>{t('graph.all')}</span>
           </button>
           <span className="pivot-name">
             <span className="dot" style={{ background: palette.pivot }} />
             {activePivot.name}
           </span>
-          <span className="pivot-hint">이 화면에서 추가한 파일은 이 피벗에 연결됩니다</span>
+          <span className="pivot-hint">{t('graph.pivotHint')}</span>
         </div>
       )}
 
@@ -788,7 +790,8 @@ export default function GraphView(props: Props) {
             <span className="linking-label">
               <IconLink size={14} />
               <span>
-                <b>{linking.label}</b> 와(과) 연결할 대상을 클릭하거나 검색하세요
+                <b>{linking.label}</b>
+                {t('graph.linkPromptSuffix')}
               </span>
             </span>
             <button
@@ -799,13 +802,13 @@ export default function GraphView(props: Props) {
               }}
             >
               <IconX size={12} />
-              <span>취소</span>
+              <span>{t('common.cancel')}</span>
             </button>
           </div>
           <input
             ref={linkInputRef}
             value={linkQuery}
-            placeholder="피벗 / 파일 이름 검색…"
+            placeholder={t('graph.linkSearchPlaceholder')}
             onChange={(e) => setLinkQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
@@ -819,7 +822,7 @@ export default function GraphView(props: Props) {
           />
           <div className="linking-results">
             {linkCandidates.length === 0 ? (
-              <div className="node-menu-empty">연결할 대상이 없습니다</div>
+              <div className="node-menu-empty">{t('graph.noLinkTargets')}</div>
             ) : (
               linkCandidates.map((t) => (
                 <button key={`${t.kind}:${t.id}`} onClick={() => finishLink(t.kind, t.id)}>
@@ -845,7 +848,7 @@ export default function GraphView(props: Props) {
           <input
             autoFocus
             value={nameText}
-            placeholder="피벗 이름 입력"
+            placeholder={t('graph.pivotNamePlaceholder')}
             onChange={(e) => setNameText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') finishNaming(true)
@@ -908,7 +911,7 @@ export default function GraphView(props: Props) {
                     <input
                       ref={inputRef}
                       value={query}
-                      placeholder="검색"
+                      placeholder={t('graph.searchPlaceholder')}
                       onChange={(e) => setQuery(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Escape') setSearch(null)
@@ -917,7 +920,7 @@ export default function GraphView(props: Props) {
                     />
                   </div>
                   {n === 0 && query.trim() && (
-                    <div className="radial-status">검색 결과 없음</div>
+                    <div className="radial-status">{t('graph.noResults')}</div>
                   )}
                   <button
                     className="radial-action"
@@ -927,7 +930,7 @@ export default function GraphView(props: Props) {
                     <span className="radial-action-icon">
                       <IconPlus size={13} />
                     </span>
-                    <span className="radial-action-text">새 피벗 생성</span>
+                    <span className="radial-action-text">{t('graph.createPivot')}</span>
                   </button>
                 </div>
               </div>
@@ -961,7 +964,7 @@ export default function GraphView(props: Props) {
               <>
                 <button onClick={() => setMenuMode('rename')}>
                   <IconPencil size={14} />
-                  <span>이름변경</span>
+                  <span>{t('graph.rename')}</span>
                 </button>
                 <button
                   onClick={() => {
@@ -975,11 +978,11 @@ export default function GraphView(props: Props) {
                   }}
                 >
                   <IconLink size={14} />
-                  <span>연결</span>
+                  <span>{t('graph.connect')}</span>
                 </button>
                 <button onClick={() => setMenuMode('disconnect')}>
                   <IconScissors size={14} />
-                  <span>연결취소</span>
+                  <span>{t('graph.disconnect')}</span>
                 </button>
                 <button
                   className="danger"
@@ -990,7 +993,7 @@ export default function GraphView(props: Props) {
                   }}
                 >
                   <IconTrash size={14} />
-                  <span>삭제</span>
+                  <span>{t('graph.delete')}</span>
                 </button>
               </>
             )}
@@ -1018,7 +1021,7 @@ export default function GraphView(props: Props) {
                     closeMenu()
                   }}
                 >
-                  확인
+                  {t('common.confirm')}
                 </button>
               </div>
             )}
@@ -1026,7 +1029,7 @@ export default function GraphView(props: Props) {
             {menuMode === 'disconnect' && (
               <div className="node-menu-list">
                 {disconnectTargets.length === 0 ? (
-                  <div className="node-menu-empty">연결된 대상이 없습니다</div>
+                  <div className="node-menu-empty">{t('graph.noConnected')}</div>
                 ) : (
                   disconnectTargets.map((t) => (
                     <button key={`${t.kind}:${t.id}`} onClick={() => applyDisconnect(t)}>
@@ -1048,15 +1051,13 @@ export default function GraphView(props: Props) {
 
       {visible.items.length === 0 && visible.pivots.length === 0 && (
         <div className="graph-empty">
-          {activePivot ? '이 피벗에 연결된 파일이 없습니다.' : '비어 있습니다.'}
+          {activePivot ? t('graph.emptyPivot') : t('graph.empty')}
           <br />
-          <small>빈 곳을 우클릭해 피벗을 만들거나, 파일을 추가하세요.</small>
+          <small>{t('graph.emptyHint')}</small>
         </div>
       )}
 
-      <div className="graph-legend">
-        클릭=열기/피벗진입 · 우클릭(빈곳)=검색·피벗생성 · 우클릭(노드)=메뉴
-      </div>
+      <div className="graph-legend">{t('graph.legend')}</div>
     </div>
   )
 }

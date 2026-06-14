@@ -14,11 +14,13 @@ export interface LibraryItem {
 
 export type ThemeId = 'slate' | 'light' | 'navy'
 export type AccentId = 'violet' | 'teal' | 'blue' | 'amber' | 'green'
+export type Language = 'ko' | 'en' | 'ja'
 
 export interface Settings {
   maxSearchResults: number
   theme: ThemeId
   accent: AccentId
+  language: Language
 }
 
 export interface Pivot {

@@ -270,10 +270,22 @@ const pivotLinkStore = makePairStore('pivot_links')
 const DEFAULT_SETTINGS = {
   maxSearchResults: 12, // 그래프 우클릭 검색에서 표시할 최대 결과 수
   theme: 'slate', // slate | light | navy
-  accent: 'teal' // violet | teal | blue | amber | green
+  accent: 'teal', // violet | teal | blue | amber | green
+  language: 'en' // ko | en | ja (실제 기본값은 systemLanguage로 대체된다)
 }
 
 type Settings = typeof DEFAULT_SETTINGS
+
+// OS 로케일에서 추정한 기본 언어. 사용자가 한 번도 고르지 않았을 때만 쓰인다.
+// app.getLocale()은 ready 이후에만 호출 가능하므로 whenReady에서 채운다.
+let systemLanguage: 'ko' | 'en' | 'ja' = 'en'
+
+function detectSystemLanguage(): 'ko' | 'en' | 'ja' {
+  const loc = app.getLocale().toLowerCase()
+  if (loc.startsWith('ko')) return 'ko'
+  if (loc.startsWith('ja')) return 'ja'
+  return 'en'
+}
 
 const settingsStore = {
   getAll(): Settings {
@@ -281,7 +293,8 @@ const settingsStore = {
       key: string
       value: string
     }>
-    const result = { ...DEFAULT_SETTINGS } as Record<string, unknown>
+    // 저장된 언어가 없으면 시스템 언어를 기본값으로 노출한다.
+    const result = { ...DEFAULT_SETTINGS, language: systemLanguage } as Record<string, unknown>
     for (const r of rows) {
       try {
         result[r.key] = JSON.parse(r.value)
@@ -687,6 +700,7 @@ function openStorage(dir: string): void {
 }
 
 app.whenReady().then(() => {
+  systemLanguage = detectSystemLanguage()
   appConfig = loadConfig()
   openStorage(appConfig.storageDir)
   registerIpc()

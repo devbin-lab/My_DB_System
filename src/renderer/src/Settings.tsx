@@ -1,28 +1,27 @@
 import { useEffect, useState } from 'react'
-import type { AccentId, Settings, ThemeId, UpdateStatus } from './types'
+import type { AccentId, Language, Settings, ThemeId, UpdateStatus } from './types'
 import { IconDownload, IconFolder, IconX } from './Icons'
+import { LANGUAGES, useT } from './i18n'
 
-export const THEMES: {
-  id: ThemeId
-  name: string
-  desc: string
-  swatch: [string, string, string]
-}[] = [
-  { id: 'slate', name: '슬레이트', desc: '밝은 다크', swatch: ['#1b1e27', '#272b38', '#e8eaf2'] },
-  { id: 'light', name: '라이트', desc: '밝고 깔끔한', swatch: ['#f5f6f8', '#ffffff', '#1d2230'] },
-  { id: 'navy', name: '네이비', desc: '깊은 청색 다크', swatch: ['#0f1726', '#1c2737', '#e3eaf5'] }
+// 표시 이름/설명은 i18n 키(theme.<id>.name / .desc)로 번역한다.
+export const THEMES: { id: ThemeId; swatch: [string, string, string] }[] = [
+  { id: 'slate', swatch: ['#1b1e27', '#272b38', '#e8eaf2'] },
+  { id: 'light', swatch: ['#f5f6f8', '#ffffff', '#1d2230'] },
+  { id: 'navy', swatch: ['#0f1726', '#1c2737', '#e3eaf5'] }
 ]
 
-export const ACCENTS: { id: AccentId; name: string; color: string }[] = [
-  { id: 'teal', name: '틸', color: '#14b8a6' },
-  { id: 'blue', name: '블루', color: '#3b82f6' },
-  { id: 'violet', name: '바이올렛', color: '#7c6af2' },
-  { id: 'amber', name: '앰버', color: '#f59e0b' },
-  { id: 'green', name: '그린', color: '#22c55e' }
+// 표시 이름은 i18n 키(accent.<id>)로 번역한다.
+export const ACCENTS: { id: AccentId; color: string }[] = [
+  { id: 'teal', color: '#14b8a6' },
+  { id: 'blue', color: '#3b82f6' },
+  { id: 'violet', color: '#7c6af2' },
+  { id: 'amber', color: '#f59e0b' },
+  { id: 'green', color: '#22c55e' }
 ]
 
 // 업데이트 확인/설치 섹션. 메인 프로세스(electron-updater)의 상태를 구독한다.
 function UpdateSection() {
+  const t = useT()
   const [version, setVersion] = useState('')
   const [status, setStatus] = useState<UpdateStatus>({ state: 'idle' })
 
@@ -38,19 +37,32 @@ function UpdateSection() {
   const message = (): { text: string; tone?: 'ok' | 'err' } => {
     switch (status.state) {
       case 'checking':
-        return { text: '업데이트 확인 중…' }
+        return { text: t('settings.update.msg.checking') }
       case 'available':
-        return { text: `새 버전 v${status.version} 을(를) 내려받는 중…` }
+        return { text: t('settings.update.msg.available', { version: status.version ?? '' }) }
       case 'downloading':
-        return { text: `새 버전 v${status.version ?? ''} 내려받는 중… ${status.percent ?? 0}%` }
+        return {
+          text: t('settings.update.msg.downloading', {
+            version: status.version ?? '',
+            percent: status.percent ?? 0
+          })
+        }
       case 'downloaded':
-        return { text: `v${status.version} 설치 준비 완료. 재시작하면 적용됩니다.`, tone: 'ok' }
+        return {
+          text: t('settings.update.msg.downloaded', { version: status.version ?? '' }),
+          tone: 'ok'
+        }
       case 'not-available':
-        return { text: '최신 버전을 사용 중입니다.', tone: 'ok' }
+        return { text: t('settings.update.msg.notAvailable'), tone: 'ok' }
       case 'dev':
-        return { text: '개발 모드에서는 업데이트를 확인할 수 없습니다.' }
+        return { text: t('settings.update.msg.dev') }
       case 'error':
-        return { text: `업데이트 확인 실패: ${status.error ?? '알 수 없는 오류'}`, tone: 'err' }
+        return {
+          text: t('settings.update.msg.error', {
+            error: status.error ?? t('settings.update.unknownError')
+          }),
+          tone: 'err'
+        }
       default:
         return { text: '' }
     }
@@ -60,17 +72,17 @@ function UpdateSection() {
 
   return (
     <section className="settings-group">
-      <h3>업데이트</h3>
+      <h3>{t('settings.update.title')}</h3>
       <div className="setting-row">
         <div className="setting-label">
-          현재 버전
+          {t('settings.update.current')}
           <small>v{version || '…'}</small>
         </div>
         <div className="setting-control">
           {status.state === 'downloaded' ? (
             <button className="btn-accent" onClick={() => window.api.installUpdate()}>
               <IconDownload size={14} />
-              재시작하여 설치
+              {t('settings.update.install')}
             </button>
           ) : (
             <button
@@ -78,7 +90,7 @@ function UpdateSection() {
               disabled={busy}
               onClick={() => window.api.checkUpdate()}
             >
-              {busy ? '확인 중…' : '업데이트 확인'}
+              {busy ? t('settings.update.checking') : t('settings.update.check')}
             </button>
           )}
         </div>
@@ -112,11 +124,12 @@ export default function SettingsModal({
   onOpenStorage: () => void
   onClose: () => void
 }) {
+  const t = useT()
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>설정</h2>
+          <h2>{t('settings.title')}</h2>
           <button className="icon-only" onClick={onClose}>
             <IconX size={16} />
           </button>
@@ -124,34 +137,49 @@ export default function SettingsModal({
 
         <div className="modal-body">
           <section className="settings-group">
-            <h3>테마</h3>
-            <div className="theme-grid">
-              {THEMES.map((t) => (
+            <h3>{t('settings.language.title')}</h3>
+            <div className="lang-row">
+              {LANGUAGES.map((l) => (
                 <button
-                  key={t.id}
-                  className={`theme-card ${settings.theme === t.id ? 'on' : ''}`}
-                  onClick={() => onChange('theme', t.id)}
+                  key={l.id}
+                  className={`lang-chip ${settings.language === l.id ? 'on' : ''}`}
+                  onClick={() => onChange('language', l.id)}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="settings-group">
+            <h3>{t('settings.theme')}</h3>
+            <div className="theme-grid">
+              {THEMES.map((tm) => (
+                <button
+                  key={tm.id}
+                  className={`theme-card ${settings.theme === tm.id ? 'on' : ''}`}
+                  onClick={() => onChange('theme', tm.id)}
                 >
                   <span
                     className="theme-preview"
-                    style={{ background: t.swatch[0], borderColor: t.swatch[1] }}
+                    style={{ background: tm.swatch[0], borderColor: tm.swatch[1] }}
                   >
-                    <span style={{ background: t.swatch[1] }} />
-                    <span style={{ background: t.swatch[2] }} />
+                    <span style={{ background: tm.swatch[1] }} />
+                    <span style={{ background: tm.swatch[2] }} />
                   </span>
-                  <span className="theme-name">{t.name}</span>
-                  <span className="theme-desc">{t.desc}</span>
+                  <span className="theme-name">{t(`theme.${tm.id}.name`)}</span>
+                  <span className="theme-desc">{t(`theme.${tm.id}.desc`)}</span>
                 </button>
               ))}
             </div>
 
-            <h3 className="mt">포인트 색상</h3>
+            <h3 className="mt">{t('settings.accent')}</h3>
             <div className="accent-row">
               {ACCENTS.map((a) => (
                 <button
                   key={a.id}
                   className={`accent-chip ${settings.accent === a.id ? 'on' : ''}`}
-                  title={a.name}
+                  title={t(`accent.${a.id}`)}
                   style={{ background: a.color }}
                   onClick={() => onChange('accent', a.id)}
                 />
@@ -160,31 +188,28 @@ export default function SettingsModal({
           </section>
 
           <section className="settings-group">
-            <h3>저장소</h3>
-            <p className="settings-desc">
-              추가하는 모든 파일이 이 폴더로 복사되어 보관됩니다. 위치를 바꾸면 기존
-              데이터도 함께 옮겨집니다.
-            </p>
+            <h3>{t('settings.storage.title')}</h3>
+            <p className="settings-desc">{t('settings.storage.desc')}</p>
             <div className="storage-path" title={storageDir}>
               <IconFolder size={14} />
-              <span>{storageDir || '불러오는 중…'}</span>
+              <span>{storageDir || t('common.loading')}</span>
             </div>
             <div className="storage-actions">
               <button className="btn-ghost" onClick={onChangeStorage}>
-                폴더 변경
+                {t('settings.storage.change')}
               </button>
               <button className="btn-ghost" onClick={onOpenStorage}>
-                탐색기에서 열기
+                {t('settings.storage.open')}
               </button>
             </div>
           </section>
 
           <section className="settings-group">
-            <h3>그래프 검색</h3>
+            <h3>{t('settings.graph.title')}</h3>
             <div className="setting-row">
               <div className="setting-label">
-                검색 결과 표시 개수
-                <small>12개마다 바깥쪽 시계 링이 하나씩 늘어납니다</small>
+                {t('settings.graph.count')}
+                <small>{t('settings.graph.countHint')}</small>
               </div>
               <div className="setting-control">
                 <input

@@ -1,14 +1,21 @@
 import { useState } from 'react'
 import type { Settings } from './types'
 import { THEMES, ACCENTS } from './Settings'
+import { LANGUAGES, useT } from './i18n'
 import { IconArrowLeft, IconFolder, IconGraph, IconSettings } from './Icons'
 
 // 첫 실행 마법사.
-// 테마/포인트색 → DB 저장 위치 → 그래프 검색 개수 순서로 안내한다.
+// 언어 → 환영 → 테마/포인트색 → DB 저장 위치 → 그래프 검색 개수 순서로 안내한다.
 // 설정 자체는 부모(App)가 기존 IPC(setSetting/setStorageDir)로 즉시 반영하므로,
 // 여기서는 단계 이동과 "시작하기"에서의 완료 처리만 담당한다.
 
-const STEPS = ['환영', '모양', '저장 위치', '그래프'] as const
+const STEP_KEYS = [
+  'onboard.steps.language',
+  'onboard.steps.welcome',
+  'onboard.steps.appearance',
+  'onboard.steps.storage',
+  'onboard.steps.graph'
+] as const
 
 export default function Onboarding({
   settings,
@@ -23,8 +30,9 @@ export default function Onboarding({
   onChangeStorage: () => void
   onFinish: () => void
 }) {
+  const t = useT()
   const [step, setStep] = useState(0)
-  const last = STEPS.length - 1
+  const last = STEP_KEYS.length - 1
 
   const next = () => setStep((s) => Math.min(s + 1, last))
   const back = () => setStep((s) => Math.max(s - 1, 0))
@@ -34,62 +42,90 @@ export default function Onboarding({
       <div className="onboard">
         {/* 진행 표시 */}
         <div className="onboard-steps">
-          {STEPS.map((label, i) => (
-            <div key={label} className={`onboard-step ${i === step ? 'on' : ''} ${i < step ? 'done' : ''}`}>
+          {STEP_KEYS.map((key, i) => (
+            <div
+              key={key}
+              className={`onboard-step ${i === step ? 'on' : ''} ${i < step ? 'done' : ''}`}
+            >
               <span className="onboard-dot">{i + 1}</span>
-              <span className="onboard-step-label">{label}</span>
+              <span className="onboard-step-label">{t(key)}</span>
             </div>
           ))}
         </div>
 
         <div className="onboard-body">
           {step === 0 && (
-            <div className="onboard-pane onboard-welcome">
-              <span className="brand-mark onboard-logo" />
-              <h1>My DB System에 오신 걸 환영합니다</h1>
-              <p>
-                파일·프로젝트·갤러리를 한곳에 모으고 그래프로 연결하는
-                <br />
-                나만의 데이터 저장 시스템입니다. 시작 전에 몇 가지만 설정할게요.
-              </p>
+            <div className="onboard-pane">
+              <h2>
+                <IconSettings size={18} /> {t('onboard.language.title')}
+              </h2>
+              <p className="onboard-desc">{t('onboard.language.desc')}</p>
+              <div className="lang-grid">
+                {LANGUAGES.map((l) => (
+                  <button
+                    key={l.id}
+                    className={`lang-card ${settings.language === l.id ? 'on' : ''}`}
+                    onClick={() => onChange('language', l.id)}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
           {step === 1 && (
+            <div className="onboard-pane onboard-welcome">
+              <span className="brand-mark onboard-logo" />
+              <h1>{t('onboard.welcome.title')}</h1>
+              <p>
+                {t('onboard.welcome.desc')
+                  .split('\n')
+                  .map((line, i) => (
+                    <span key={i}>
+                      {i > 0 && <br />}
+                      {line}
+                    </span>
+                  ))}
+              </p>
+            </div>
+          )}
+
+          {step === 2 && (
             <div className="onboard-pane">
               <h2>
-                <IconSettings size={18} /> 모양 고르기
+                <IconSettings size={18} /> {t('onboard.appearance.title')}
               </h2>
-              <p className="onboard-desc">언제든 설정에서 다시 바꿀 수 있어요.</p>
+              <p className="onboard-desc">{t('onboard.changeAnytime')}</p>
 
-              <h3>테마</h3>
+              <h3>{t('onboard.appearance.theme')}</h3>
               <div className="theme-grid">
-                {THEMES.map((t) => (
+                {THEMES.map((tm) => (
                   <button
-                    key={t.id}
-                    className={`theme-card ${settings.theme === t.id ? 'on' : ''}`}
-                    onClick={() => onChange('theme', t.id)}
+                    key={tm.id}
+                    className={`theme-card ${settings.theme === tm.id ? 'on' : ''}`}
+                    onClick={() => onChange('theme', tm.id)}
                   >
                     <span
                       className="theme-preview"
-                      style={{ background: t.swatch[0], borderColor: t.swatch[1] }}
+                      style={{ background: tm.swatch[0], borderColor: tm.swatch[1] }}
                     >
-                      <span style={{ background: t.swatch[1] }} />
-                      <span style={{ background: t.swatch[2] }} />
+                      <span style={{ background: tm.swatch[1] }} />
+                      <span style={{ background: tm.swatch[2] }} />
                     </span>
-                    <span className="theme-name">{t.name}</span>
-                    <span className="theme-desc">{t.desc}</span>
+                    <span className="theme-name">{t(`theme.${tm.id}.name`)}</span>
+                    <span className="theme-desc">{t(`theme.${tm.id}.desc`)}</span>
                   </button>
                 ))}
               </div>
 
-              <h3 className="mt">포인트 색상</h3>
+              <h3 className="mt">{t('onboard.appearance.accent')}</h3>
               <div className="accent-row">
                 {ACCENTS.map((a) => (
                   <button
                     key={a.id}
                     className={`accent-chip ${settings.accent === a.id ? 'on' : ''}`}
-                    title={a.name}
+                    title={t(`accent.${a.id}`)}
                     style={{ background: a.color }}
                     onClick={() => onChange('accent', a.id)}
                   />
@@ -98,38 +134,32 @@ export default function Onboarding({
             </div>
           )}
 
-          {step === 2 && (
+          {step === 3 && (
             <div className="onboard-pane">
               <h2>
-                <IconFolder size={18} /> 데이터 저장 위치
+                <IconFolder size={18} /> {t('onboard.storage.title')}
               </h2>
-              <p className="onboard-desc">
-                추가하는 모든 파일이 이 폴더로 복사되어 보관됩니다. 클라우드 동기화
-                폴더(예: 드롭박스)를 골라도 됩니다. 나중에 옮기면 데이터도 함께 이동해요.
-              </p>
+              <p className="onboard-desc">{t('onboard.storage.desc')}</p>
               <div className="storage-path" title={storageDir}>
                 <IconFolder size={14} />
-                <span>{storageDir || '불러오는 중…'}</span>
+                <span>{storageDir || t('common.loading')}</span>
               </div>
               <div className="storage-actions">
                 <button className="btn-ghost" onClick={onChangeStorage}>
-                  폴더 변경
+                  {t('onboard.storage.change')}
                 </button>
               </div>
             </div>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <div className="onboard-pane">
               <h2>
-                <IconGraph size={18} /> 그래프 검색 개수
+                <IconGraph size={18} /> {t('onboard.graph.title')}
               </h2>
-              <p className="onboard-desc">
-                그래프 화면에서 우클릭 검색 시 한 번에 보여줄 결과 수입니다. 12개마다
-                바깥쪽 시계 링이 하나씩 늘어납니다.
-              </p>
+              <p className="onboard-desc">{t('onboard.graph.desc')}</p>
               <div className="setting-row">
-                <div className="setting-label">검색 결과 표시 개수</div>
+                <div className="setting-label">{t('onboard.graph.count')}</div>
                 <div className="setting-control">
                   <input
                     type="range"
@@ -152,15 +182,15 @@ export default function Onboarding({
             onClick={back}
             style={{ visibility: step === 0 ? 'hidden' : 'visible' }}
           >
-            <IconArrowLeft size={14} /> 이전
+            <IconArrowLeft size={14} /> {t('common.back')}
           </button>
           {step < last ? (
             <button className="btn-accent" onClick={next}>
-              다음
+              {t('common.next')}
             </button>
           ) : (
             <button className="btn-accent" onClick={onFinish}>
-              시작하기
+              {t('onboard.start')}
             </button>
           )}
         </div>

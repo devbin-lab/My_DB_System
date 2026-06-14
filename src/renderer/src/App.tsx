@@ -4,6 +4,7 @@ import Viewer from './Viewer'
 import GraphView from './GraphView'
 import SettingsModal from './Settings'
 import Onboarding from './Onboarding'
+import { I18nContext, LOCALES, makeT } from './i18n'
 import {
   IconDownload,
   IconEye,
@@ -17,7 +18,12 @@ import {
   IconX
 } from './Icons'
 
-const DEFAULT_SETTINGS: Settings = { maxSearchResults: 12, theme: 'slate', accent: 'teal' }
+const DEFAULT_SETTINGS: Settings = {
+  maxSearchResults: 12,
+  theme: 'slate',
+  accent: 'teal',
+  language: 'en'
+}
 
 // 테마별 그래프 캔버스 팔레트
 export interface GraphPalette {
@@ -90,6 +96,8 @@ export default function App() {
   const [activePivotId, setActivePivotId] = useState<string | null>(null)
   const [previewId, setPreviewId] = useState<string | null>(null) // 그래프 읽기 전용 미리보기
 
+  const t = useMemo(() => makeT(settings.language), [settings.language])
+
   // Esc로 미리보기/설정 닫기
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -148,7 +156,7 @@ export default function App() {
       setDataDir(newDir)
       await refresh()
     } catch {
-      alert('저장소 이동에 실패했습니다. 폴더 권한이나 사용 중인 파일을 확인해주세요.')
+      alert(t('app.storage.moveFailed'))
     }
   }
 
@@ -196,7 +204,7 @@ export default function App() {
   // ----- 피벗 / 연결 콜백 -----
   // 생성 즉시 그래프에 나타나고, 이름은 그 자리에서 바로 입력받는다(GraphView)
   const createPivot = async (): Promise<Pivot> => {
-    const pivot = await window.api.createPivot('새 피벗')
+    const pivot = await window.api.createPivot(t('app.pivot.new'))
     await refresh()
     return pivot
   }
@@ -239,6 +247,7 @@ export default function App() {
   }
 
   return (
+   <I18nContext.Provider value={t}>
     <div
       className={`app ${dragOver ? 'drag-over' : ''}`}
       onDragOver={(e) => {
@@ -262,31 +271,35 @@ export default function App() {
               onClick={() => setView('graph')}
             >
               <IconGraph size={15} />
-              <span>그래프</span>
+              <span>{t('topbar.graph')}</span>
             </button>
             <button
               className={view === 'library' ? 'on' : ''}
               onClick={() => setView('library')}
             >
               <IconList size={15} />
-              <span>목록</span>
+              <span>{t('topbar.list')}</span>
             </button>
           </div>
 
           <button
             className="tb-icon"
-            title="저장 폴더 열기"
+            title={t('topbar.openFolder')}
             onClick={() => window.api.openDataDir()}
           >
             <IconFolder size={17} />
           </button>
-          <button className="tb-icon" title="설정" onClick={() => setSettingsOpen(true)}>
+          <button
+            className="tb-icon"
+            title={t('topbar.settings')}
+            onClick={() => setSettingsOpen(true)}
+          >
             <IconSettings size={17} />
           </button>
 
           <button className="btn-accent" onClick={handleImport}>
             <IconPlus size={15} />
-            <span>파일 추가</span>
+            <span>{t('topbar.addFile')}</span>
           </button>
         </div>
       </header>
@@ -327,7 +340,7 @@ export default function App() {
                     <div className="preview-bar">
                       <span className="preview-title">
                         <IconEye size={14} />
-                        읽기 전용
+                        {t('app.preview.readOnly')}
                       </span>
                       <div className="preview-bar-actions">
                         <button
@@ -338,7 +351,7 @@ export default function App() {
                           }}
                         >
                           <IconList size={13} />
-                          <span>목록에서 열기</span>
+                          <span>{t('app.preview.openInList')}</span>
                         </button>
                         <button className="icon-only" onClick={() => setPreviewId(null)}>
                           <IconX size={14} />
@@ -356,7 +369,7 @@ export default function App() {
               <div className="lib-search">
                 <IconSearch size={15} />
                 <input
-                  placeholder="이름 또는 태그 검색"
+                  placeholder={t('app.lib.searchPlaceholder')}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -374,13 +387,18 @@ export default function App() {
                       <>
                         <IconDownload size={28} />
                         <p>
-                          파일을 창에 끌어다 놓거나
-                          <br />
-                          상단의 [파일 추가]를 누르세요
+                          {t('app.lib.emptyDrop')
+                            .split('\n')
+                            .map((line, i) => (
+                              <span key={i}>
+                                {i > 0 && <br />}
+                                {line}
+                              </span>
+                            ))}
                         </p>
                       </>
                     ) : (
-                      <p>검색 결과가 없습니다</p>
+                      <p>{t('app.lib.noResults')}</p>
                     )}
                   </div>
                 )}
@@ -403,7 +421,7 @@ export default function App() {
                       <div className="lib-card-name">{item.name}</div>
                       <div className="lib-card-meta">
                         {formatSize(item.size)} ·{' '}
-                        {new Date(item.createdAt).toLocaleDateString('ko-KR')}
+                        {new Date(item.createdAt).toLocaleDateString(LOCALES[settings.language])}
                         {item.tags.length > 0 && (
                           <span className="lib-card-tags">
                             {' '}
@@ -414,7 +432,7 @@ export default function App() {
                     </div>
                     <button
                       className="lib-card-del"
-                      title="삭제"
+                      title={t('app.lib.deleteTitle')}
                       onClick={(e) => {
                         e.stopPropagation()
                         handleRemove(item.id)
@@ -431,7 +449,7 @@ export default function App() {
               {selected ? (
                 <Viewer key={selected.id} item={selected} onTagsChange={refresh} />
               ) : (
-                <div className="empty">파일을 선택하면 여기에 표시됩니다</div>
+                <div className="empty">{t('app.lib.selectToView')}</div>
               )}
             </div>
           </section>
@@ -466,11 +484,12 @@ export default function App() {
         <div className="drop-overlay">
           <div className="drop-box">
             <IconDownload size={32} />
-            <span>여기에 파일을 놓으세요</span>
-            {importPivotId && <small>현재 피벗에 자동으로 연결됩니다</small>}
+            <span>{t('app.drop.here')}</span>
+            {importPivotId && <small>{t('app.drop.linkHint')}</small>}
           </div>
         </div>
       )}
     </div>
+   </I18nContext.Provider>
   )
 }

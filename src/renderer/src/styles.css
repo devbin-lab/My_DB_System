@@ -1499,6 +1499,63 @@ button {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+/* ---------- 언어 선택 ---------- */
+/* 설정 모달: 가로 칩 */
+.lang-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lang-chip {
+  flex: 1 1 0;
+  min-width: 90px;
+  background: var(--bg);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--r-md);
+  padding: 10px 14px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 13px;
+  transition: border-color 0.12s;
+}
+
+.lang-chip:hover {
+  border-color: var(--text-dim);
+}
+
+.lang-chip.on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* 온보딩: 더 큰 카드 그리드 */
+.lang-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.lang-card {
+  background: var(--bg);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--r-md);
+  padding: 18px 12px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 15px;
+  transition: border-color 0.12s;
+}
+
+.lang-card:hover {
+  border-color: var(--text-dim);
+}
+
+.lang-card.on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
 .storage-path {
   display: flex;
   align-items: center;
