@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import type { ItemLink, ItemType, LibraryItem, Link, Pivot, Settings } from './types'
-import Viewer from './Viewer'
 import GraphView from './GraphView'
 import SettingsModal from './Settings'
 import Onboarding from './Onboarding'
 import { I18nContext, LOCALES, makeT } from './i18n'
+
+// 뷰어는 react-markdown / highlight.js / papaparse 등 무거운 의존성을 쓰므로
+// 필요할 때만 불러오도록 코드 분할(lazy)한다. 초기 번들이 가벼워진다.
+const Viewer = lazy(() => import('./Viewer'))
 import {
   IconDownload,
   IconEye,
@@ -95,6 +98,8 @@ export default function App() {
   const [pivotLinks, setPivotLinks] = useState<ItemLink[]>([])
   const [activePivotId, setActivePivotId] = useState<string | null>(null)
   const [previewId, setPreviewId] = useState<string | null>(null) // 그래프 읽기 전용 미리보기
+  const [typeFilter, setTypeFilter] = useState<ItemType | 'all'>('all') // 라이브러리 타입 필터
+  const [sortBy, setSortBy] = useState<'recent' | 'name' | 'size'>('recent') // 라이브러리 정렬
 
   const t = useMemo(() => makeT(settings.language), [settings.language])
 
@@ -160,14 +165,35 @@ export default function App() {
     }
   }
 
+  // 라이브러리에 존재하는 타입(필터 칩 노출용)과 모든 태그(자동완성용)
+  const presentTypes = useMemo(() => {
+    const order: ItemType[] = ['md', 'pdf', 'csv', 'code', 'image', 'other']
+    const set = new Set(items.map((i) => i.type))
+    return order.filter((tp) => set.has(tp))
+  }, [items])
+
+  const allTags = useMemo(() => {
+    const set = new Set<string>()
+    for (const i of items) for (const tag of i.tags) set.add(tag)
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [items])
+
   const filtered = useMemo(() => {
-    if (!search) return items
-    const q = search.toLowerCase()
-    return items.filter(
-      (i) =>
-        i.name.toLowerCase().includes(q) || i.tags.some((t) => t.toLowerCase().includes(q))
-    )
-  }, [items, search])
+    let result = items
+    if (typeFilter !== 'all') result = result.filter((i) => i.type === typeFilter)
+    if (search) {
+      const q = search.toLowerCase()
+      result = result.filter(
+        (i) =>
+          i.name.toLowerCase().includes(q) || i.tags.some((t) => t.toLowerCase().includes(q))
+      )
+    }
+    const sorted = [...result]
+    if (sortBy === 'name') sorted.sort((a, b) => a.name.localeCompare(b.name))
+    else if (sortBy === 'size') sorted.sort((a, b) => b.size - a.size)
+    else sorted.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    return sorted
+  }, [items, search, typeFilter, sortBy])
 
   const selected = items.find((i) => i.id === selectedId) ?? null
 
@@ -358,7 +384,9 @@ export default function App() {
                         </button>
                       </div>
                     </div>
-                    <Viewer key={item.id} item={item} readOnly />
+                    <Suspense fallback={<div className="empty">{t('common.loading')}</div>}>
+                      <Viewer key={item.id} item={item} readOnly allTags={allTags} />
+                    </Suspense>
                   </div>
                 )
               })()}
@@ -378,6 +406,44 @@ export default function App() {
                     <IconX size={13} />
                   </button>
                 )}
+              </div>
+
+              {/* 타입 필터 + 정렬 */}
+              <div className="lib-toolbar">
+                {presentTypes.length > 0 && (
+                  <div className="lib-filters">
+                    <button
+                      className={`type-chip ${typeFilter === 'all' ? 'on' : ''}`}
+                      onClick={() => setTypeFilter('all')}
+                    >
+                      {t('app.lib.filterAll')}
+                    </button>
+                    {presentTypes.map((tp) => (
+                      <button
+                        key={tp}
+                        className={`type-chip ${typeFilter === tp ? 'on' : ''}`}
+                        style={
+                          typeFilter === tp
+                            ? { color: TYPE_COLORS[tp], borderColor: TYPE_COLORS[tp] }
+                            : undefined
+                        }
+                        onClick={() => setTypeFilter(tp)}
+                      >
+                        {t(`type.${tp}`)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <select
+                  className="lib-sort"
+                  value={sortBy}
+                  title={t('app.lib.sortLabel')}
+                  onChange={(e) => setSortBy(e.target.value as 'recent' | 'name' | 'size')}
+                >
+                  <option value="recent">{t('app.lib.sort.recent')}</option>
+                  <option value="name">{t('app.lib.sort.name')}</option>
+                  <option value="size">{t('app.lib.sort.size')}</option>
+                </select>
               </div>
 
               <div className="lib-items">
@@ -424,8 +490,19 @@ export default function App() {
                         {new Date(item.createdAt).toLocaleDateString(LOCALES[settings.language])}
                         {item.tags.length > 0 && (
                           <span className="lib-card-tags">
-                            {' '}
-                            · {item.tags.map((t) => `#${t}`).join(' ')}
+                            {' · '}
+                            {item.tags.map((tag) => (
+                              <button
+                                key={tag}
+                                className="tag-link"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setSearch(tag)
+                                }}
+                              >
+                                #{tag}
+                              </button>
+                            ))}
                           </span>
                         )}
                       </div>
@@ -447,7 +524,14 @@ export default function App() {
 
             <div className="lib-viewer">
               {selected ? (
-                <Viewer key={selected.id} item={selected} onTagsChange={refresh} />
+                <Suspense fallback={<div className="empty">{t('common.loading')}</div>}>
+                  <Viewer
+                    key={selected.id}
+                    item={selected}
+                    onTagsChange={refresh}
+                    allTags={allTags}
+                  />
+                </Suspense>
               ) : (
                 <div className="empty">{t('app.lib.selectToView')}</div>
               )}

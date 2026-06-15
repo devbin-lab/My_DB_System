@@ -241,19 +241,32 @@ export interface ItemLink {
   bId: string
 }
 
-// 같은 종류끼리 연결하는 공통 저장소(파일↔파일, 피벗↔피벗).
-// 중복을 막기 위해 항상 (작은 id, 큰 id) 순서로 저장.
-function makePairStore(table: string) {
+// 같은 종류끼리 연결하는 공통 저장소.
+// - 파일↔파일: 방향 없음. 중복을 막기 위해 항상 (작은 id, 큰 id) 순서로 저장.
+// - 피벗↔피벗: 방향 있음(부모→자식). a_id=부모, b_id=자식 순서를 그대로 저장한다.
+function makePairStore(table: string, directed = false) {
   return {
     list(): ItemLink[] {
       return db.prepare(`SELECT a_id AS aId, b_id AS bId FROM ${table}`).all() as ItemLink[]
     },
+    // 방향 있는 연결은 x=부모, y=자식으로 그대로 저장한다.
     add(x: string, y: string): void {
       if (x === y) return
-      const [a, b] = x < y ? [x, y] : [y, x]
+      const [a, b] = directed ? [x, y] : x < y ? [x, y] : [y, x]
+      if (directed) {
+        // 반대 방향(자식→부모)이 이미 있으면 제거해 한 쌍에 한 방향만 유지한다.
+        db.prepare(`DELETE FROM ${table} WHERE a_id = ? AND b_id = ?`).run(b, a)
+      }
       db.prepare(`INSERT OR IGNORE INTO ${table} (a_id, b_id) VALUES (?, ?)`).run(a, b)
     },
+    // 제거는 방향과 무관하게 두 노드 사이 연결을 지운다.
     remove(x: string, y: string): void {
+      if (directed) {
+        db.prepare(
+          `DELETE FROM ${table} WHERE (a_id = ? AND b_id = ?) OR (a_id = ? AND b_id = ?)`
+        ).run(x, y, y, x)
+        return
+      }
       const [a, b] = x < y ? [x, y] : [y, x]
       db.prepare(`DELETE FROM ${table} WHERE a_id = ? AND b_id = ?`).run(a, b)
     },
@@ -264,7 +277,7 @@ function makePairStore(table: string) {
 }
 
 const itemLinkStore = makePairStore('item_links')
-const pivotLinkStore = makePairStore('pivot_links')
+const pivotLinkStore = makePairStore('pivot_links', true)
 
 // ---------- 설정(키-값) ----------
 const DEFAULT_SETTINGS = {

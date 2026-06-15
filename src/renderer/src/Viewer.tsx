@@ -2,11 +2,55 @@ import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import Papa from 'papaparse'
-import hljs from 'highlight.js'
+import hljs from 'highlight.js/lib/core'
 import 'highlight.js/styles/github-dark.css'
 import type { LibraryItem } from './types'
 import { IconExternal, IconFolder } from './Icons'
 import { useT } from './i18n'
+
+// highlight.js 코어 + 코드 뷰어가 실제로 쓰는 언어만 등록한다(전체 번들 대신).
+import hC from 'highlight.js/lib/languages/c'
+import hCpp from 'highlight.js/lib/languages/cpp'
+import hCsharp from 'highlight.js/lib/languages/csharp'
+import hPython from 'highlight.js/lib/languages/python'
+import hCss from 'highlight.js/lib/languages/css'
+import hScss from 'highlight.js/lib/languages/scss'
+import hJs from 'highlight.js/lib/languages/javascript'
+import hTs from 'highlight.js/lib/languages/typescript'
+import hJson from 'highlight.js/lib/languages/json'
+import hXml from 'highlight.js/lib/languages/xml'
+import hYaml from 'highlight.js/lib/languages/yaml'
+import hBash from 'highlight.js/lib/languages/bash'
+import hPowershell from 'highlight.js/lib/languages/powershell'
+import hJava from 'highlight.js/lib/languages/java'
+import hKotlin from 'highlight.js/lib/languages/kotlin'
+import hRust from 'highlight.js/lib/languages/rust'
+import hGo from 'highlight.js/lib/languages/go'
+import hLua from 'highlight.js/lib/languages/lua'
+import hSql from 'highlight.js/lib/languages/sql'
+
+const HLJS_LANGS: Record<string, Parameters<typeof hljs.registerLanguage>[1]> = {
+  c: hC,
+  cpp: hCpp,
+  csharp: hCsharp,
+  python: hPython,
+  css: hCss,
+  scss: hScss,
+  javascript: hJs,
+  typescript: hTs,
+  json: hJson,
+  xml: hXml,
+  yaml: hYaml,
+  bash: hBash,
+  powershell: hPowershell,
+  java: hJava,
+  kotlin: hKotlin,
+  rust: hRust,
+  go: hGo,
+  lua: hLua,
+  sql: hSql
+}
+for (const [name, lang] of Object.entries(HLJS_LANGS)) hljs.registerLanguage(name, lang)
 
 const MIME: Record<string, string> = {
   '.pdf': 'application/pdf',
@@ -27,11 +71,13 @@ function base64ToBlobUrl(base64: string, mime: string): string {
 export default function Viewer({
   item,
   onTagsChange,
-  readOnly = false
+  readOnly = false,
+  allTags = []
 }: {
   item: LibraryItem
   onTagsChange?: () => void
   readOnly?: boolean
+  allTags?: string[]
 }) {
   const t = useT()
   const [text, setText] = useState<string | null>(null)
@@ -68,14 +114,28 @@ export default function Viewer({
     }
   }, [item.id, item.type, item.ext])
 
-  const saveTags = async () => {
-    const tags = tagInput
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean)
+  const currentTags = tagInput
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  const saveTagList = async (tags: string[]) => {
     await window.api.setTags(item.id, tags)
     onTagsChange?.()
   }
+
+  const saveTags = () => saveTagList(currentTags)
+
+  // 클릭 한 번으로 기존 태그를 추가(중복 제외)
+  const addTag = (tag: string) => {
+    if (currentTags.includes(tag)) return
+    const next = [...currentTags, tag]
+    setTagInput(next.join(', '))
+    saveTagList(next)
+  }
+
+  // 아직 안 붙은 기존 태그 추천 목록
+  const suggestions = allTags.filter((tag) => !currentTags.includes(tag)).slice(0, 12)
 
   return (
     <div className="viewer">
@@ -104,6 +164,16 @@ export default function Viewer({
             onKeyDown={(e) => e.key === 'Enter' && saveTags()}
             placeholder={t('viewer.tagsPlaceholder')}
           />
+          {suggestions.length > 0 && (
+            <div className="tag-suggest">
+              <span className="tag-suggest-label">{t('viewer.suggestedTags')}</span>
+              {suggestions.map((tag) => (
+                <button key={tag} className="tag-suggest-chip" onClick={() => addTag(tag)}>
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

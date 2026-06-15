@@ -35,6 +35,7 @@ interface GNode {
 interface GEdge {
   a: number
   b: number
+  dir?: boolean // 방향 있는 엣지(피벗 부모→자식). a=부모, b=자식
 }
 
 // 테마별 캔버스 색은 App에서 palette로 내려준다
@@ -137,9 +138,10 @@ export default function GraphView(props: Props) {
   >(() => {})
 
   // 어떤 노드를 그릴지 결정.
-  // 집중 보기면: 활성 피벗 + pivotLinks로 연결된 모든 하위 피벗(서브트리) + 그들에 연결된 파일.
-  // (pivotLinks는 방향이 없으므로 활성 피벗에서 도달 가능한 연결 성분을 BFS로 모은다.
-  //  부모 피벗을 클릭하면 자식·손자 피벗과 그 하위 파일들이 함께 보인다.)
+  // 집중 보기면: 활성 피벗 + pivotLinks(부모→자식)를 따라 내려간 모든 하위 피벗(자식·손자…)
+  //   + 그 피벗들에 연결된 파일.
+  // pivotLinks는 방향이 있으므로(a_id=부모, b_id=자식) 자식 방향으로만 내려간다.
+  // → 부모 피벗을 클릭하면 하위 계층만 펼쳐지고 상위(부모/형제)는 보이지 않는다.
   const visible = useMemo(() => {
     if (activePivotId) {
       const pivotIds = new Set<string>([activePivotId])
@@ -147,12 +149,9 @@ export default function GraphView(props: Props) {
       while (queue.length > 0) {
         const cur = queue.shift() as string
         for (const pl of pivotLinks) {
-          let next: string | null = null
-          if (pl.aId === cur && !pivotIds.has(pl.bId)) next = pl.bId
-          else if (pl.bId === cur && !pivotIds.has(pl.aId)) next = pl.aId
-          if (next) {
-            pivotIds.add(next)
-            queue.push(next)
+          if (pl.aId === cur && !pivotIds.has(pl.bId)) {
+            pivotIds.add(pl.bId)
+            queue.push(pl.bId)
           }
         }
       }
@@ -443,12 +442,12 @@ export default function GraphView(props: Props) {
       const b = idx.get(`item:${l.bId}`)
       if (a !== undefined && b !== undefined) edges.push({ a, b })
     }
-    // 피벗↔피벗 연결
+    // 피벗↔피벗 연결 (부모 a → 자식 b, 방향 있음)
     for (const l of pivotLinks) {
       if (!visiblePivotIds.has(l.aId) || !visiblePivotIds.has(l.bId)) continue
       const a = idx.get(`pivot:${l.aId}`)
       const b = idx.get(`pivot:${l.bId}`)
-      if (a !== undefined && b !== undefined) edges.push({ a, b })
+      if (a !== undefined && b !== undefined) edges.push({ a, b, dir: true })
     }
 
     nodesRef.current = nodes
@@ -571,6 +570,29 @@ export default function GraphView(props: Props) {
         ctx.lineTo(nodes[e.b].x, nodes[e.b].y)
       }
       ctx.stroke()
+
+      // 부모→자식 방향 화살표(피벗 계층). 자식 노드 경계 바로 바깥에 삼각형으로 표시.
+      ctx.fillStyle = palette.pivot
+      for (const e of edges) {
+        if (!e.dir) continue
+        const a = nodes[e.a]
+        const b = nodes[e.b]
+        const dx = b.x - a.x
+        const dy = b.y - a.y
+        const d = Math.hypot(dx, dy) || 1
+        const ux = dx / d
+        const uy = dy / d
+        const tipX = b.x - ux * (b.r + 3)
+        const tipY = b.y - uy * (b.r + 3)
+        const len = 8 / scale
+        const wid = 5 / scale
+        ctx.beginPath()
+        ctx.moveTo(tipX, tipY)
+        ctx.lineTo(tipX - ux * len - uy * wid, tipY - uy * len + ux * wid)
+        ctx.lineTo(tipX - ux * len + uy * wid, tipY - uy * len - ux * wid)
+        ctx.closePath()
+        ctx.fill()
+      }
 
       for (const n of nodes) {
         const color = n.kind === 'pivot' ? palette.pivot : palette.file
