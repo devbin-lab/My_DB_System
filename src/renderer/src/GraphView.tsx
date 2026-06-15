@@ -45,6 +45,7 @@ export interface GraphPalette {
   edge: string
   label: string
   labelHover: string
+  accent: string // 포인트색(부모→자식 방향 호 등 강조용)
 }
 
 const DEFAULT_PALETTE: GraphPalette = {
@@ -52,7 +53,8 @@ const DEFAULT_PALETTE: GraphPalette = {
   pivot: '#cdd3e0',
   edge: 'rgba(154, 161, 181, 0.55)',
   label: 'rgba(232, 234, 242, 0.8)',
-  labelHover: '#ffffff'
+  labelHover: '#ffffff',
+  accent: '#2dd4bf'
 }
 
 // 호버/포커스 링: 타입별 대표색. 대표색이 없으면 흰색.
@@ -292,6 +294,8 @@ export default function GraphView(props: Props) {
   } | null>(null)
   const [linkQuery, setLinkQuery] = useState('')
   const linkInputRef = useRef<HTMLInputElement>(null)
+  // 연결 모드에서 캔버스 draw 루프가 최신 소스 노드를 읽도록 ref로 주입(고무줄 선용)
+  const linkingRef = useRef(linking)
 
   useEffect(() => {
     if (linking) linkInputRef.current?.focus()
@@ -372,6 +376,7 @@ export default function GraphView(props: Props) {
     else if (n.kind === 'item') onOpenItem(n.refId)
     else onSelectPivot(n.refId)
   }
+  linkingRef.current = linking
 
   // ---------- 시뮬레이션 + 렌더링 ----------
   useEffect(() => {
@@ -382,9 +387,35 @@ export default function GraphView(props: Props) {
     let width = parent.clientWidth
     let height = parent.clientHeight
 
+    // 중력 중심: 노드를 끌어당기는 월드 좌표 기준점. 리사이즈로 바뀌지 않게 고정한다.
+    const centerX = width / 2
+    const centerY = height / 2
+
+    // 뷰 변환 상태 (resize에서 보정하므로 먼저 선언)
+    let scale = 1
+    let offsetX = 0
+    let offsetY = 0
+    let tweening = false
+    let targetScale = 1
+    let targetOffsetX = 0
+    let targetOffsetY = 0
+    let focusId: string | null = null
+
     const resize = () => {
-      width = parent.clientWidth
-      height = parent.clientHeight
+      const newW = parent.clientWidth
+      const newH = parent.clientHeight
+      // 노드 좌표·중력 중심은 그대로 두고, 화면 중앙에 있던 지점이 계속 중앙에 남도록
+      // 뷰 오프셋만 보정한다. → 줌/패닝 상태와 무관하게 보던 위치가 유지되고 쏠림도 없다.
+      if (newW !== width || newH !== height) {
+        const dx = (newW - width) / 2
+        const dy = (newH - height) / 2
+        offsetX += dx
+        offsetY += dy
+        targetOffsetX += dx
+        targetOffsetY += dy
+      }
+      width = newW
+      height = newH
       const dpr = window.devicePixelRatio || 1
       canvas.width = width * dpr
       canvas.height = height * dpr
@@ -452,16 +483,6 @@ export default function GraphView(props: Props) {
 
     nodesRef.current = nodes
 
-    // 뷰 변환
-    let scale = 1
-    let offsetX = 0
-    let offsetY = 0
-    let tweening = false
-    let targetScale = 1
-    let targetOffsetX = 0
-    let targetOffsetY = 0
-    let focusId: string | null = null
-
     focusRef.current = (id: string) => {
       const n = nodes.find((nd) => nd.id === id)
       if (!n) return
@@ -479,6 +500,10 @@ export default function GraphView(props: Props) {
     let lastY = 0
     let moved = 0
     let hoverNode: GNode | null = null
+    // 호버 강조 상태: 피벗에 마우스를 올리면 그 직계 자식만 밝히고 나머지는 흐리게(옵시디언식).
+    let dim = 0 // 0=강조 없음, 1=완전 강조 (부드럽게 보간)
+    let hlNodes: Set<GNode> | null = null
+    let hlEdges: Set<GEdge> | null = null
 
     const toWorld = (sx: number, sy: number) => ({
       x: (sx - offsetX) / scale,
@@ -546,8 +571,8 @@ export default function GraphView(props: Props) {
           n.vy = 0
           continue
         }
-        n.vx += (width / 2 - n.x) * GRAVITY * alpha
-        n.vy += (height / 2 - n.y) * GRAVITY * alpha
+        n.vx += (centerX - n.x) * GRAVITY * alpha
+        n.vy += (centerY - n.y) * GRAVITY * alpha
         n.vx *= DAMPING
         n.vy *= DAMPING
         n.x += n.vx
@@ -562,42 +587,61 @@ export default function GraphView(props: Props) {
       ctx.translate(offsetX, offsetY)
       ctx.scale(scale, scale)
 
+      // 호버한 피벗의 하위 전체(자식·손자… 서브트리)를 강조 대상으로 모은다.
+      // 엣지는 a=부모/원본, b=자식/대상으로 저장되므로, 자식 방향(e.a==현재)으로만 내려간다.
+      const dimTarget = hoverNode && hoverNode.kind === 'pivot' ? 1 : 0
+      if (hoverNode && hoverNode.kind === 'pivot') {
+        const start = nodes.indexOf(hoverNode)
+        // 1) 하위 피벗을 BFS로 모두 수집(피벗→피벗 방향만 따라감)
+        const pivotSet = new Set<number>([start])
+        const queue = [start]
+        while (queue.length > 0) {
+          const cur = queue.shift() as number
+          for (const e of edges) {
+            if (e.a === cur && nodes[e.b].kind === 'pivot' && !pivotSet.has(e.b)) {
+              pivotSet.add(e.b)
+              queue.push(e.b)
+            }
+          }
+        }
+        // 2) 수집된 피벗들 + 그들에 연결된 파일 + 잇는 엣지를 모두 강조
+        const hn = new Set<GNode>()
+        const he = new Set<GEdge>()
+        for (const pi of pivotSet) hn.add(nodes[pi])
+        for (const e of edges) {
+          if (pivotSet.has(e.a)) {
+            he.add(e)
+            hn.add(nodes[e.b])
+          }
+        }
+        hlNodes = hn
+        hlEdges = he
+      }
+      dim += (dimTarget - dim) * 0.2
+      if (dim < 0.002) {
+        dim = 0
+        hlNodes = null
+        hlEdges = null
+      }
+      const dimAlpha = 1 - 0.82 * dim
+
       ctx.strokeStyle = palette.edge
       ctx.lineWidth = 1.6 / scale
-      ctx.beginPath()
       for (const e of edges) {
+        ctx.globalAlpha = !hlEdges || hlEdges.has(e) ? 1 : dimAlpha
+        ctx.beginPath()
         ctx.moveTo(nodes[e.a].x, nodes[e.a].y)
         ctx.lineTo(nodes[e.b].x, nodes[e.b].y)
+        ctx.stroke()
       }
-      ctx.stroke()
-
-      // 부모→자식 방향 화살표(피벗 계층). 자식 노드 경계 바로 바깥에 삼각형으로 표시.
-      ctx.fillStyle = palette.pivot
-      for (const e of edges) {
-        if (!e.dir) continue
-        const a = nodes[e.a]
-        const b = nodes[e.b]
-        const dx = b.x - a.x
-        const dy = b.y - a.y
-        const d = Math.hypot(dx, dy) || 1
-        const ux = dx / d
-        const uy = dy / d
-        const tipX = b.x - ux * (b.r + 3)
-        const tipY = b.y - uy * (b.r + 3)
-        const len = 8 / scale
-        const wid = 5 / scale
-        ctx.beginPath()
-        ctx.moveTo(tipX, tipY)
-        ctx.lineTo(tipX - ux * len - uy * wid, tipY - uy * len + ux * wid)
-        ctx.lineTo(tipX - ux * len + uy * wid, tipY - uy * len - ux * wid)
-        ctx.closePath()
-        ctx.fill()
-      }
+      ctx.globalAlpha = 1
 
       for (const n of nodes) {
         const color = n.kind === 'pivot' ? palette.pivot : palette.file
         const isHover = n === hoverNode
         const isFocus = n.id === focusId
+        // 강조 중이고 자식 집합에 없으면 흐리게
+        const na = !hlNodes || hlNodes.has(n) ? 1 : dimAlpha
 
         // 애플식 부드러운 호버: 목표값(0/1)으로 매 프레임 지수 보간
         const target = isHover || isFocus ? 1 : 0
@@ -610,7 +654,7 @@ export default function GraphView(props: Props) {
           ctx.beginPath()
           ctx.arc(n.x, n.y, n.r * 2.2, 0, Math.PI * 2)
           ctx.strokeStyle = ring
-          ctx.globalAlpha = 0.5
+          ctx.globalAlpha = 0.5 * na
           ctx.lineWidth = 2 / scale
           ctx.stroke()
           ctx.globalAlpha = 1
@@ -624,7 +668,7 @@ export default function GraphView(props: Props) {
           ctx.shadowColor = ring
           ctx.shadowBlur = 18 * n.h
           ctx.fillStyle = color
-          ctx.globalAlpha = 0.9 * n.h
+          ctx.globalAlpha = 0.9 * n.h * na
           ctx.fill()
           ctx.restore()
         }
@@ -633,20 +677,21 @@ export default function GraphView(props: Props) {
         ctx.beginPath()
         ctx.arc(n.x, n.y, drawR, 0, Math.PI * 2)
         ctx.fillStyle = color
+        ctx.globalAlpha = na
         ctx.fill()
         if (n.kind === 'pivot') {
           ctx.strokeStyle = palette.labelHover
-          ctx.globalAlpha = 0.5
+          ctx.globalAlpha = 0.5 * na
           ctx.lineWidth = 2 / scale
           ctx.stroke()
-          ctx.globalAlpha = 1
         }
+        ctx.globalAlpha = 1
         // 컬러 링도 서서히 떠오른다
         if (n.h > 0.01) {
           ctx.beginPath()
           ctx.arc(n.x, n.y, drawR + 2.5 / scale, 0, Math.PI * 2)
           ctx.strokeStyle = ring
-          ctx.globalAlpha = n.h
+          ctx.globalAlpha = n.h * na
           ctx.lineWidth = 1.5 / scale
           ctx.stroke()
           ctx.globalAlpha = 1
@@ -658,13 +703,56 @@ export default function GraphView(props: Props) {
         if (labelAlpha > 0.02) {
           const fontSize = (n.kind === 'pivot' ? 13 : 10) / scale
           ctx.font = `${n.kind === 'pivot' ? '600 ' : ''}${fontSize}px 'Segoe UI', 'Malgun Gothic', sans-serif`
-          ctx.globalAlpha = labelAlpha
+          ctx.globalAlpha = labelAlpha * na
           ctx.fillStyle = n.h > 0.5 ? palette.labelHover : palette.label
           ctx.textAlign = 'center'
           ctx.fillText(n.label, n.x, n.y + drawR + fontSize + 4 / scale)
           ctx.globalAlpha = 1
         }
       }
+
+      // 부모→자식 방향 표시: 부모 피벗 테두리의 자식 쪽에 흰색 점을 찍는다.
+      ctx.fillStyle = palette.labelHover
+      for (const e of edges) {
+        if (!e.dir) continue
+        const p = nodes[e.a] // 부모
+        const c = nodes[e.b] // 자식
+        const pna = !hlNodes || hlNodes.has(p) ? 1 : dimAlpha
+        const drawR = p.r * (1 + 0.15 * p.h)
+        const ang = Math.atan2(c.y - p.y, c.x - p.x)
+        const dotX = p.x + Math.cos(ang) * (drawR + 4 / scale)
+        const dotY = p.y + Math.sin(ang) * (drawR + 4 / scale)
+        ctx.beginPath()
+        ctx.arc(dotX, dotY, 4 / scale, 0, Math.PI * 2)
+        ctx.globalAlpha = 0.95 * pna
+        ctx.fill()
+      }
+      ctx.globalAlpha = 1
+
+      // 연결 모드: 소스 노드에서 마우스 커서까지 따라오는 고무줄 선
+      const link = linkingRef.current
+      if (link) {
+        const srcId = (link.kind === 'pivot' ? 'pivot:' : 'item:') + link.refId
+        const src = nodes.find((nd) => nd.id === srcId)
+        if (src) {
+          const m = toWorld(lastX, lastY)
+          ctx.strokeStyle = palette.pivot
+          ctx.globalAlpha = 0.85
+          ctx.lineWidth = 2 / scale
+          ctx.setLineDash([6 / scale, 5 / scale])
+          ctx.beginPath()
+          ctx.moveTo(src.x, src.y)
+          ctx.lineTo(m.x, m.y)
+          ctx.stroke()
+          ctx.setLineDash([])
+          ctx.beginPath()
+          ctx.arc(m.x, m.y, 3.5 / scale, 0, Math.PI * 2)
+          ctx.fillStyle = palette.pivot
+          ctx.fill()
+          ctx.globalAlpha = 1
+        }
+      }
+
       ctx.restore()
     }
 

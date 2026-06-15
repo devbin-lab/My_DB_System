@@ -713,11 +713,12 @@ function openStorage(dir: string): void {
 }
 
 // ---------- 단일 인스턴스 보장 ----------
-// 락을 얻지 못하면(= 이미 실행 중이면) 두 번째 인스턴스는 즉시 종료한다.
-// 이게 없으면 아이콘을 누를 때마다 새 창이 계속 떠버린다.
-const gotSingleInstanceLock = app.requestSingleInstanceLock()
+// 패키징된 앱에서만 락을 건다. 락을 얻지 못하면(= 이미 실행 중이면) 즉시 종료해
+// 아이콘을 눌러도 창이 하나만 유지되게 한다.
+// 개발 모드(npm run dev)에서는 설치본과 락이 충돌해 dev가 안 뜨는 걸 막기 위해 적용하지 않는다.
+const ownsSingleInstance = !app.isPackaged || app.requestSingleInstanceLock()
 
-if (!gotSingleInstanceLock) {
+if (!ownsSingleInstance) {
   app.quit()
 } else {
   // 두 번째 실행 시도가 들어오면 기존 창을 복원/포커스한다.

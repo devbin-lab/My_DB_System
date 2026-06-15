@@ -35,9 +35,19 @@ export interface GraphPalette {
   edge: string
   label: string
   labelHover: string
+  accent: string // 포인트색(부모→자식 방향 호 등 강조에 사용)
 }
 
-const GRAPH_PALETTES: Record<Settings['theme'], GraphPalette> = {
+// 포인트색별 선명한 강조용 hex (CSS의 --accent-hover와 동일)
+const ACCENT_HEX: Record<Settings['accent'], string> = {
+  teal: '#2dd4bf',
+  blue: '#60a5fa',
+  violet: '#8d7cf7',
+  amber: '#fbbf24',
+  green: '#4ade80'
+}
+
+const GRAPH_PALETTES: Record<Settings['theme'], Omit<GraphPalette, 'accent'>> = {
   slate: {
     file: '#9aa1b5',
     pivot: '#cdd3e0',
@@ -151,7 +161,10 @@ export default function App() {
     document.documentElement.dataset.accent = settings.accent
   }, [settings.theme, settings.accent])
 
-  const palette = useMemo(() => GRAPH_PALETTES[settings.theme], [settings.theme])
+  const palette = useMemo(
+    () => ({ ...GRAPH_PALETTES[settings.theme], accent: ACCENT_HEX[settings.accent] }),
+    [settings.theme, settings.accent]
+  )
 
   const changeStorage = async () => {
     const chosen = await window.api.chooseStorageDir()
