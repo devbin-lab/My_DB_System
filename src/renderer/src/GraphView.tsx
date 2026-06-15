@@ -136,20 +136,36 @@ export default function GraphView(props: Props) {
     (n: { refId: string; kind: 'pivot' | 'item'; label: string }) => void
   >(() => {})
 
-  // 어떤 노드를 그릴지 결정 (집중 보기면 해당 피벗 + 연결 파일만)
+  // 어떤 노드를 그릴지 결정.
+  // 집중 보기면: 활성 피벗 + pivotLinks로 연결된 모든 하위 피벗(서브트리) + 그들에 연결된 파일.
+  // (pivotLinks는 방향이 없으므로 활성 피벗에서 도달 가능한 연결 성분을 BFS로 모은다.
+  //  부모 피벗을 클릭하면 자식·손자 피벗과 그 하위 파일들이 함께 보인다.)
   const visible = useMemo(() => {
     if (activePivotId) {
+      const pivotIds = new Set<string>([activePivotId])
+      const queue = [activePivotId]
+      while (queue.length > 0) {
+        const cur = queue.shift() as string
+        for (const pl of pivotLinks) {
+          let next: string | null = null
+          if (pl.aId === cur && !pivotIds.has(pl.bId)) next = pl.bId
+          else if (pl.bId === cur && !pivotIds.has(pl.aId)) next = pl.aId
+          if (next) {
+            pivotIds.add(next)
+            queue.push(next)
+          }
+        }
+      }
       const memberIds = new Set(
-        links.filter((l) => l.pivotId === activePivotId).map((l) => l.itemId)
+        links.filter((l) => pivotIds.has(l.pivotId)).map((l) => l.itemId)
       )
-      const pivot = pivots.find((p) => p.id === activePivotId)
       return {
-        pivots: pivot ? [pivot] : [],
+        pivots: pivots.filter((p) => pivotIds.has(p.id)),
         items: items.filter((i) => memberIds.has(i.id))
       }
     }
     return { pivots, items }
-  }, [activePivotId, pivots, items, links])
+  }, [activePivotId, pivots, items, links, pivotLinks])
 
   // ---------- 우클릭 검색/피벗 생성 오버레이 ----------
   const [search, setSearch] = useState<{ x: number; y: number } | null>(null)

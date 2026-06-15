@@ -699,19 +699,40 @@ function openStorage(dir: string): void {
   migrateFromJson()
 }
 
-app.whenReady().then(() => {
-  systemLanguage = detectSystemLanguage()
-  appConfig = loadConfig()
-  openStorage(appConfig.storageDir)
-  registerIpc()
-  registerUpdater()
-  createWindow()
+// ---------- 단일 인스턴스 보장 ----------
+// 락을 얻지 못하면(= 이미 실행 중이면) 두 번째 인스턴스는 즉시 종료한다.
+// 이게 없으면 아이콘을 누를 때마다 새 창이 계속 떠버린다.
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+if (!gotSingleInstanceLock) {
+  app.quit()
+} else {
+  // 두 번째 실행 시도가 들어오면 기존 창을 복원/포커스한다.
+  app.on('second-instance', () => {
+    const wins = BrowserWindow.getAllWindows()
+    if (wins.length > 0) {
+      const win = wins[0]
+      if (win.isMinimized()) win.restore()
+      win.focus()
+    } else {
+      createWindow()
+    }
   })
-})
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
-})
+  app.whenReady().then(() => {
+    systemLanguage = detectSystemLanguage()
+    appConfig = loadConfig()
+    openStorage(appConfig.storageDir)
+    registerIpc()
+    registerUpdater()
+    createWindow()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  })
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit()
+  })
+}
