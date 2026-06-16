@@ -260,6 +260,11 @@ export default function App() {
     if (activePivotId === id) setActivePivotId(null)
     await refresh()
   }
+  const removePivotCascade = async (id: string) => {
+    await window.api.removePivotCascade(id)
+    if (activePivotId === id) setActivePivotId(null)
+    await refresh()
+  }
   const renameItem = async (id: string, name: string) => {
     await window.api.rename(id, name)
     await refresh()
@@ -373,6 +378,7 @@ export default function App() {
               onRenamePivot={renamePivot}
               onRenameItem={renameItem}
               onDeletePivot={removePivot}
+              onDeletePivotCascade={removePivotCascade}
               onDeleteItem={handleRemove}
               onConnect={connect}
               onDisconnect={disconnect}

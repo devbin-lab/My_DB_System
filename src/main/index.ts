@@ -504,6 +504,41 @@ function importFolder(dirPath: string, parentPivotId: string | null, added: Libr
   }
 }
 
+// 피벗을 하위 전체와 함께 휴지통으로 보낸다(소프트 삭제).
+// - 자식 방향(pivot_links: a=부모→b=자식)으로 서브트리 피벗을 모두 모은다.
+// - 서브트리 피벗에 연결된 파일 중, 서브트리 바깥 피벗에 연결이 없는(=고아가 되는) 파일만 삭제한다.
+//   (다른 피벗에도 속한 공유 파일은 보존)
+function removePivotCascade(rootId: string): void {
+  const pivotLinkRows = db.prepare('SELECT a_id, b_id FROM pivot_links').all() as Array<{
+    a_id: string
+    b_id: string
+  }>
+  const subtree = new Set<string>([rootId])
+  const queue = [rootId]
+  while (queue.length > 0) {
+    const cur = queue.shift() as string
+    for (const l of pivotLinkRows) {
+      if (l.a_id === cur && !subtree.has(l.b_id)) {
+        subtree.add(l.b_id)
+        queue.push(l.b_id)
+      }
+    }
+  }
+  const linkRows = db.prepare('SELECT pivot_id, item_id FROM links').all() as Array<{
+    pivot_id: string
+    item_id: string
+  }>
+  // 서브트리 피벗에 연결된 파일들 중 외부 연결이 없는 것만 삭제
+  const candidates = new Set(
+    linkRows.filter((l) => subtree.has(l.pivot_id)).map((l) => l.item_id)
+  )
+  for (const itemId of candidates) {
+    const hasExternal = linkRows.some((l) => l.item_id === itemId && !subtree.has(l.pivot_id))
+    if (!hasExternal) store.softDelete(itemId)
+  }
+  for (const pid of subtree) pivotStore.softDelete(pid)
+}
+
 // 저장된 파일의 이름을 바꾼다(디스크 + DB 동시). 확장자가 바뀌면 타입도 재계산.
 function renameItem(id: string, newNameRaw: string): LibraryItem | null {
   const item = store.get(id)
@@ -675,6 +710,11 @@ function registerIpc(): void {
   // 피벗 삭제 = 휴지통으로(소프트 삭제). 링크는 보존(복원 시 재연결).
   ipcMain.handle('pivots:remove', (_e, id: string) => {
     pivotStore.softDelete(id)
+    return pivotStore.list()
+  })
+  // 피벗 + 하위 전체 삭제(고아 파일만 함께 휴지통으로).
+  ipcMain.handle('pivots:removeCascade', (_e, id: string) => {
+    removePivotCascade(id)
     return pivotStore.list()
   })
   ipcMain.handle('links:list', () => linkStore.list())

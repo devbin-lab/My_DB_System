@@ -35,6 +35,7 @@ const api = {
   renamePivot: (id: string, name: string) =>
     ipcRenderer.invoke('pivots:rename', id, name),
   removePivot: (id: string) => ipcRenderer.invoke('pivots:remove', id),
+  removePivotCascade: (id: string) => ipcRenderer.invoke('pivots:removeCascade', id),
   listLinks: () => ipcRenderer.invoke('links:list'),
   addLink: (pivotId: string, itemId: string) =>
     ipcRenderer.invoke('links:add', pivotId, itemId),

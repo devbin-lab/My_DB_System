@@ -31,7 +31,7 @@ export interface Target {
 }
 
 // 노드 컨텍스트 메뉴 모드
-export type MenuMode = 'main' | 'connect' | 'disconnect' | 'rename'
+export type MenuMode = 'main' | 'connect' | 'disconnect' | 'rename' | 'delete'
 
 // 연결 모드의 소스 노드
 export interface LinkSource {

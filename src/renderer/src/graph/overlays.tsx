@@ -263,6 +263,7 @@ export function NodeMenu({
   onRenamePivot,
   onRenameItem,
   onDeletePivot,
+  onDeletePivotCascade,
   onDeleteItem
 }: {
   menu: { x: number; y: number; node: GNode }
@@ -280,6 +281,7 @@ export function NodeMenu({
   onRenamePivot: (id: string, name: string) => void
   onRenameItem: (id: string, name: string) => void
   onDeletePivot: (id: string) => void
+  onDeletePivotCascade: (id: string) => void
   onDeleteItem: (id: string) => void
 }) {
   const t = useT()
@@ -325,15 +327,40 @@ export function NodeMenu({
             <button
               className="danger"
               onClick={() => {
-                if (menu.node.kind === 'pivot') onDeletePivot(menu.node.refId)
-                else onDeleteItem(menu.node.refId)
-                closeMenu()
+                // 피벗은 '피벗만 / 하위 전체' 선택 단계로, 파일은 바로 삭제(휴지통)
+                if (menu.node.kind === 'pivot') setMenuMode('delete')
+                else {
+                  onDeleteItem(menu.node.refId)
+                  closeMenu()
+                }
               }}
             >
               <IconTrash size={14} />
               <span>{t('graph.delete')}</span>
             </button>
           </>
+        )}
+
+        {menuMode === 'delete' && (
+          <div className="node-menu-list">
+            <button
+              onClick={() => {
+                onDeletePivot(menu.node.refId)
+                closeMenu()
+              }}
+            >
+              {t('graph.deletePivotOnly')}
+            </button>
+            <button
+              className="danger"
+              onClick={() => {
+                onDeletePivotCascade(menu.node.refId)
+                closeMenu()
+              }}
+            >
+              {t('graph.deleteSubtree')}
+            </button>
+          </div>
         )}
 
         {menuMode === 'rename' && (

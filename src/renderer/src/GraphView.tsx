@@ -41,6 +41,7 @@ interface Props {
   onRenamePivot: (id: string, name: string) => void
   onRenameItem: (id: string, name: string) => void
   onDeletePivot: (id: string) => void
+  onDeletePivotCascade: (id: string) => void
   onDeleteItem: (id: string) => void
   onConnect: (pivotId: string, itemId: string) => void
   onDisconnect: (pivotId: string, itemId: string) => void
@@ -66,6 +67,7 @@ export default function GraphView(props: Props) {
     onRenamePivot,
     onRenameItem,
     onDeletePivot,
+    onDeletePivotCascade,
     onDeleteItem,
     onConnect,
     onDisconnect,
@@ -412,6 +414,7 @@ export default function GraphView(props: Props) {
           onRenamePivot={onRenamePivot}
           onRenameItem={onRenameItem}
           onDeletePivot={onDeletePivot}
+          onDeletePivotCascade={onDeletePivotCascade}
           onDeleteItem={onDeleteItem}
         />
       )}

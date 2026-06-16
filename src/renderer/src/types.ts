@@ -83,6 +83,7 @@ export interface Api {
   createPivot: (name: string) => Promise<Pivot>
   renamePivot: (id: string, name: string) => Promise<Pivot[]>
   removePivot: (id: string) => Promise<Pivot[]>
+  removePivotCascade: (id: string) => Promise<Pivot[]>
   listLinks: () => Promise<Link[]>
   addLink: (pivotId: string, itemId: string) => Promise<Link[]>
   removeLink: (pivotId: string, itemId: string) => Promise<Link[]>
