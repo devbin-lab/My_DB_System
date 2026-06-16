@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ItemLink, ItemType, LibraryItem, Link, Pivot } from './types'
+import type { ItemLink, LibraryItem, Link, Pivot } from './types'
 import {
   IconArrowLeft,
   IconLink,
@@ -13,6 +13,7 @@ import {
 import { useT } from './i18n'
 import type { GEdge, GNode, GraphPalette, Target } from './graph/types'
 import { applyRepulsion, BH_THETA, buildQuadTree } from './graph/quadtree'
+import { ringColor } from './graph/colors'
 
 // 피벗 중심 그래프.
 // 노드: 피벗(허브) + 파일. 엣지: 피벗-파일 연결(links).
@@ -31,21 +32,6 @@ const DEFAULT_PALETTE: GraphPalette = {
   label: 'rgba(232, 234, 242, 0.8)',
   labelHover: '#ffffff',
   accent: '#2dd4bf'
-}
-
-// 호버/포커스 링: 타입별 대표색. 대표색이 없으면 흰색.
-const TYPE_RING: Partial<Record<ItemType, string>> = {
-  md: '#7c6af2',
-  pdf: '#f2786a',
-  csv: '#5fd068',
-  code: '#5ab8f5',
-  image: '#f5c95a'
-}
-
-// 대표색이 없는 타입과 피벗은 테마의 강조 라벨 색(다크=흰색, 라이트=검정)을 쓴다
-function ringColor(n: GNode, palette: GraphPalette): string {
-  if (n.kind === 'item' && n.type) return TYPE_RING[n.type] ?? palette.labelHover
-  return palette.labelHover
 }
 
 interface Props {
