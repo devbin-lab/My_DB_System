@@ -56,6 +56,10 @@ interface QuadCell {
 const BH_THETA = 0.8 // 근사 강도(작을수록 정확하지만 느림)
 const BH_MIN_CELL = 1 // 좌표가 거의 같은 노드에서 무한 분할 방지
 
+// 노드 위치 캐시(id → 좌표/속도). 모듈 레벨이라 그래프뷰가 언마운트/재마운트(목록 ↔ 그래프
+// 전환)돼도 유지된다. → 그래프로 돌아왔을 때 이전 배치를 그대로 복원해 다시 펼쳐지지 않는다.
+const positionCache = new Map<string, { x: number; y: number; vx: number; vy: number }>()
+
 function makeCell(x0: number, y0: number, x1: number, y1: number): QuadCell {
   return { x0, y0, x1, y1, cx: 0, cy: 0, mass: 0, body: null, children: null }
 }
@@ -308,9 +312,6 @@ export default function GraphView(props: Props) {
   // spawnRef: 새 피벗 노드를 우클릭한 위치에 고정 배치하기 위한 정보
   const spawnRef = useRef<{ id: string; x: number; y: number } | null>(null)
   const nodesRef = useRef<GNode[]>([])
-  // 재빌드 간 노드 위치를 보존하기 위한 캐시(id → 좌표/속도).
-  // 데이터가 바뀔 때마다 시뮬레이션이 처음부터 다시 펼쳐져 요동치는 것을 막는다.
-  const posRef = useRef(new Map<string, { x: number; y: number; vx: number; vy: number }>())
   const [naming, setNaming] = useState<{ pivotId: string; x: number; y: number } | null>(
     null
   )
@@ -539,22 +540,27 @@ export default function GraphView(props: Props) {
     const edges: GEdge[] = []
     const idx = new Map<string, number>()
     // 첫 빌드(보존된 위치 없음)인지, 이번에 새로 생긴 노드 인덱스는 무엇인지 추적
-    const isFirstBuild = posRef.current.size === 0
+    const isFirstBuild = positionCache.size === 0
     const newIndices: number[] = []
+    // 첫 배치 스폰 반경: 노드 수에 비례해 넓게 퍼뜨려(원판) 중심 뭉침을 줄인다.
+    const totalNodes = visible.pivots.length + visible.items.length
+    const spawnR = Math.max(250, Math.sqrt(Math.max(1, totalNodes)) * 55)
     const add = (n: Omit<GNode, 'x' | 'y' | 'vx' | 'vy' | 'fixed' | 'h'>) => {
       const i = nodes.length
       idx.set(n.id, i)
-      const saved = posRef.current.get(n.id)
+      const saved = positionCache.get(n.id)
       if (saved) {
         // 기존 노드는 이전 위치/속도를 그대로 복원 → 튀지 않음
         nodes.push({ ...n, x: saved.x, y: saved.y, vx: saved.vx, vy: saved.vy, fixed: false, h: 0 })
       } else {
-        // 새 노드는 일단 중심 근처에 두고(아래에서 이웃 근처로 재배치)
+        // 새 노드는 중심을 둘러싼 원판에 고르게 스폰(아래에서 이웃이 있으면 그 근처로 재배치)
         newIndices.push(i)
+        const ang = Math.random() * Math.PI * 2
+        const rad = Math.sqrt(Math.random()) * spawnR
         nodes.push({
           ...n,
-          x: width / 2 + (Math.random() - 0.5) * Math.min(width, 600),
-          y: height / 2 + (Math.random() - 0.5) * Math.min(height, 600),
+          x: centerX + Math.cos(ang) * rad,
+          y: centerY + Math.sin(ang) * rad,
           vx: 0,
           vy: 0,
           fixed: false,
@@ -1020,13 +1026,13 @@ export default function GraphView(props: Props) {
     return () => {
       // 현재 보이는 노드 위치를 저장(집중 보기로 숨겨진 노드의 좌표는 유지해야 하므로
       // 통째로 교체하지 않고 갱신만 한다). 실제로 삭제된 노드만 정리한다.
-      for (const n of nodes) posRef.current.set(n.id, { x: n.x, y: n.y, vx: n.vx, vy: n.vy })
+      for (const n of nodes) positionCache.set(n.id, { x: n.x, y: n.y, vx: n.vx, vy: n.vy })
       const liveIds = new Set<string>([
         ...items.map((i) => `item:${i.id}`),
         ...pivots.map((p) => `pivot:${p.id}`)
       ])
-      for (const key of posRef.current.keys()) {
-        if (!liveIds.has(key)) posRef.current.delete(key)
+      for (const key of positionCache.keys()) {
+        if (!liveIds.has(key)) positionCache.delete(key)
       }
       cancelAnimationFrame(raf)
       ro.disconnect()
