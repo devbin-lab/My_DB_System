@@ -98,6 +98,10 @@ export interface Api {
   showInFolder: (id: string) => Promise<void>
   remove: (id: string) => Promise<void>
   setTags: (id: string, tags: string[]) => Promise<LibraryItem>
+  listTrash: () => Promise<{ items: LibraryItem[]; pivots: Pivot[] }>
+  restoreTrash: (kind: 'item' | 'pivot', id: string) => Promise<void>
+  purgeTrash: (kind: 'item' | 'pivot', id: string) => Promise<void>
+  emptyTrash: () => Promise<void>
   getPathForFile: (file: File) => string
 }
 

@@ -186,6 +186,14 @@ function initDb(): void {
   db.exec(
     "UPDATE items SET type = 'xls' WHERE type = 'other' AND (ext = '.xls' OR ext = '.xlsx' OR ext = '.xlsm');"
   )
+
+  // 휴지통(소프트 삭제)용 deleted_at 컬럼 추가(이미 있으면 무시).
+  const hasColumn = (table: string, col: string): boolean =>
+    (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).some(
+      (c) => c.name === col
+    )
+  if (!hasColumn('items', 'deleted_at')) db.exec('ALTER TABLE items ADD COLUMN deleted_at TEXT')
+  if (!hasColumn('pivots', 'deleted_at')) db.exec('ALTER TABLE pivots ADD COLUMN deleted_at TEXT')
 }
 
 export interface Pivot {
@@ -201,9 +209,24 @@ export interface Link {
 
 const pivotStore = {
   list(): Pivot[] {
-    return (
-      db.prepare('SELECT id, name, created_at AS createdAt FROM pivots ORDER BY created_at') .all() as Pivot[]
-    )
+    return db
+      .prepare(
+        'SELECT id, name, created_at AS createdAt FROM pivots WHERE deleted_at IS NULL ORDER BY created_at'
+      )
+      .all() as Pivot[]
+  },
+  listDeleted(): Pivot[] {
+    return db
+      .prepare(
+        'SELECT id, name, created_at AS createdAt FROM pivots WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC'
+      )
+      .all() as Pivot[]
+  },
+  softDelete(id: string): void {
+    db.prepare('UPDATE pivots SET deleted_at = ? WHERE id = ?').run(new Date().toISOString(), id)
+  },
+  restore(id: string): void {
+    db.prepare('UPDATE pivots SET deleted_at = NULL WHERE id = ?').run(id)
   },
   create(name: string): Pivot {
     const pivot: Pivot = {
@@ -229,9 +252,14 @@ const pivotStore = {
 }
 
 const linkStore = {
+  // 삭제(휴지통)된 피벗·파일을 참조하는 연결은 제외한다.
   list(): Link[] {
     return db
-      .prepare('SELECT pivot_id AS pivotId, item_id AS itemId FROM links')
+      .prepare(
+        `SELECT l.pivot_id AS pivotId, l.item_id AS itemId FROM links l
+         JOIN pivots p ON p.id = l.pivot_id AND p.deleted_at IS NULL
+         JOIN items i ON i.id = l.item_id AND i.deleted_at IS NULL`
+      )
       .all() as Link[]
   },
   add(pivotId: string, itemId: string): void {
@@ -255,10 +283,17 @@ export interface ItemLink {
 // 같은 종류끼리 연결하는 공통 저장소.
 // - 파일↔파일: 방향 없음. 중복을 막기 위해 항상 (작은 id, 큰 id) 순서로 저장.
 // - 피벗↔피벗: 방향 있음(부모→자식). a_id=부모, b_id=자식 순서를 그대로 저장한다.
-function makePairStore(table: string, directed = false) {
+function makePairStore(table: string, nodeTable: string, directed = false) {
   return {
+    // 삭제(휴지통)된 노드를 참조하는 연결은 제외한다.
     list(): ItemLink[] {
-      return db.prepare(`SELECT a_id AS aId, b_id AS bId FROM ${table}`).all() as ItemLink[]
+      return db
+        .prepare(
+          `SELECT t.a_id AS aId, t.b_id AS bId FROM ${table} t
+           JOIN ${nodeTable} na ON na.id = t.a_id AND na.deleted_at IS NULL
+           JOIN ${nodeTable} nb ON nb.id = t.b_id AND nb.deleted_at IS NULL`
+        )
+        .all() as ItemLink[]
     },
     // 방향 있는 연결은 x=부모, y=자식으로 그대로 저장한다.
     add(x: string, y: string): void {
@@ -287,8 +322,8 @@ function makePairStore(table: string, directed = false) {
   }
 }
 
-const itemLinkStore = makePairStore('item_links')
-const pivotLinkStore = makePairStore('pivot_links', true)
+const itemLinkStore = makePairStore('item_links', 'items')
+const pivotLinkStore = makePairStore('pivot_links', 'pivots', true)
 
 // ---------- 설정(키-값) ----------
 const DEFAULT_SETTINGS = {
@@ -352,8 +387,22 @@ function rowToItem(row: ItemRow): LibraryItem {
 
 const store = {
   list(): LibraryItem[] {
-    const rows = db.prepare('SELECT * FROM items ORDER BY created_at DESC').all() as ItemRow[]
+    const rows = db
+      .prepare('SELECT * FROM items WHERE deleted_at IS NULL ORDER BY created_at DESC')
+      .all() as ItemRow[]
     return rows.map(rowToItem)
+  },
+  listDeleted(): LibraryItem[] {
+    const rows = db
+      .prepare('SELECT * FROM items WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC')
+      .all() as ItemRow[]
+    return rows.map(rowToItem)
+  },
+  softDelete(id: string): void {
+    db.prepare('UPDATE items SET deleted_at = ? WHERE id = ?').run(new Date().toISOString(), id)
+  },
+  restore(id: string): void {
+    db.prepare('UPDATE items SET deleted_at = NULL WHERE id = ?').run(id)
   },
   get(id: string): LibraryItem | undefined {
     const row = db.prepare('SELECT * FROM items WHERE id = ?').get(id) as ItemRow | undefined
@@ -623,8 +672,9 @@ function registerIpc(): void {
     pivotStore.rename(id, name)
     return pivotStore.list()
   })
+  // 피벗 삭제 = 휴지통으로(소프트 삭제). 링크는 보존(복원 시 재연결).
   ipcMain.handle('pivots:remove', (_e, id: string) => {
-    pivotStore.remove(id)
+    pivotStore.softDelete(id)
     return pivotStore.list()
   })
   ipcMain.handle('links:list', () => linkStore.list())
@@ -703,18 +753,48 @@ function registerIpc(): void {
     if (item) shell.showItemInFolder(item.storedPath)
   })
 
+  // 삭제 = 휴지통으로 보냄(소프트 삭제). 링크·파일은 보존해 복원 가능하게 한다.
   ipcMain.handle('library:remove', (_e, id: string) => {
-    const item = store.get(id)
-    if (!item) return
-    store.remove(id)
-    linkStore.removeItem(id)
-    itemLinkStore.removeId(id)
-    fs.rmSync(item.storedPath, { force: true })
+    store.softDelete(id)
   })
 
   ipcMain.handle('library:setTags', (_e, id: string, tags: string[]) => {
     store.setTags(id, tags)
     return store.get(id)
+  })
+
+  // ----- 휴지통 -----
+  // 파일 영구 삭제: DB 행 + 모든 링크 + 디스크 파일 제거.
+  const purgeItem = (id: string): void => {
+    const item = store.get(id)
+    store.remove(id)
+    linkStore.removeItem(id)
+    itemLinkStore.removeId(id)
+    if (item) fs.rmSync(item.storedPath, { force: true })
+  }
+  // 피벗 영구 삭제: DB 행 + 관련 링크 제거.
+  const purgePivot = (id: string): void => {
+    pivotStore.remove(id) // 행 + links + pivot_links 정리
+  }
+
+  ipcMain.handle('trash:list', () => ({
+    items: store.listDeleted(),
+    pivots: pivotStore.listDeleted()
+  }))
+
+  ipcMain.handle('trash:restore', (_e, kind: 'item' | 'pivot', id: string) => {
+    if (kind === 'item') store.restore(id)
+    else pivotStore.restore(id)
+  })
+
+  ipcMain.handle('trash:purge', (_e, kind: 'item' | 'pivot', id: string) => {
+    if (kind === 'item') purgeItem(id)
+    else purgePivot(id)
+  })
+
+  ipcMain.handle('trash:empty', () => {
+    for (const it of store.listDeleted()) purgeItem(it.id)
+    for (const pv of pivotStore.listDeleted()) purgePivot(pv.id)
   })
 }
 

@@ -52,6 +52,12 @@ const api = {
   showInFolder: (id: string) => ipcRenderer.invoke('library:showInFolder', id),
   remove: (id: string) => ipcRenderer.invoke('library:remove', id),
   setTags: (id: string, tags: string[]) => ipcRenderer.invoke('library:setTags', id, tags),
+  // 휴지통
+  listTrash: () => ipcRenderer.invoke('trash:list'),
+  restoreTrash: (kind: 'item' | 'pivot', id: string) =>
+    ipcRenderer.invoke('trash:restore', kind, id),
+  purgeTrash: (kind: 'item' | 'pivot', id: string) => ipcRenderer.invoke('trash:purge', kind, id),
+  emptyTrash: () => ipcRenderer.invoke('trash:empty'),
   // 드래그&드롭된 File 객체에서 실제 경로 추출
   getPathForFile: (file: File) => webUtils.getPathForFile(file)
 }

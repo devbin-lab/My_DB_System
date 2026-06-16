@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react
 import type { ItemLink, ItemType, LibraryItem, Link, Pivot, Settings } from './types'
 import GraphView from './GraphView'
 import SettingsModal from './Settings'
+import TrashModal from './Trash'
 import Onboarding from './Onboarding'
 import { I18nContext, LOCALES, makeT } from './i18n'
 
@@ -101,6 +102,7 @@ export default function App() {
   const [dragOver, setDragOver] = useState(false)
   const [view, setView] = useState<'graph' | 'library'>('graph')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [trashOpen, setTrashOpen] = useState(false)
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   // null = 아직 확인 중, false = 첫 실행(마법사 표시), true = 온보딩 완료
   const [onboarded, setOnboarded] = useState<boolean | null>(null)
@@ -119,12 +121,13 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      if (settingsOpen) setSettingsOpen(false)
+      if (trashOpen) setTrashOpen(false)
+      else if (settingsOpen) setSettingsOpen(false)
       else if (previewId) setPreviewId(null)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [previewId, settingsOpen])
+  }, [previewId, settingsOpen, trashOpen])
 
   const refresh = useCallback(async () => {
     const [its, pvs, lks, ils, pls] = await Promise.all([
@@ -328,6 +331,13 @@ export default function App() {
             onClick={() => window.api.openDataDir()}
           >
             <IconFolder size={17} />
+          </button>
+          <button
+            className="tb-icon"
+            title={t('topbar.trash')}
+            onClick={() => setTrashOpen(true)}
+          >
+            <IconTrash size={17} />
           </button>
           <button
             className="tb-icon"
@@ -565,6 +575,9 @@ export default function App() {
           onClose={() => setSettingsOpen(false)}
         />
       )}
+
+      {/* 휴지통 모달 */}
+      {trashOpen && <TrashModal onClose={() => setTrashOpen(false)} onChanged={refresh} />}
 
       {/* 첫 실행 온보딩 마법사 */}
       {onboarded === false && (

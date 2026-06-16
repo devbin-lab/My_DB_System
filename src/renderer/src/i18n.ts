@@ -40,6 +40,15 @@ const ko: Dict = {
   'topbar.openFolder': '저장 폴더 열기',
   'topbar.settings': '설정',
   'topbar.addFile': '파일 추가',
+  'topbar.trash': '휴지통',
+  'trash.title': '휴지통',
+  'trash.empty': '휴지통 비우기',
+  'trash.restore': '복원',
+  'trash.purge': '영구 삭제',
+  'trash.isEmpty': '휴지통이 비어 있습니다',
+  'trash.pivotsSection': '피벗',
+  'trash.filesSection': '파일',
+  'trash.emptyConfirm': '휴지통의 모든 항목을 영구 삭제할까요? 되돌릴 수 없습니다.',
 
   // 앱 본문
   'app.preview.readOnly': '읽기 전용',
@@ -180,6 +189,15 @@ const en: Dict = {
   'topbar.openFolder': 'Open storage folder',
   'topbar.settings': 'Settings',
   'topbar.addFile': 'Add files',
+  'topbar.trash': 'Trash',
+  'trash.title': 'Trash',
+  'trash.empty': 'Empty trash',
+  'trash.restore': 'Restore',
+  'trash.purge': 'Delete forever',
+  'trash.isEmpty': 'Trash is empty',
+  'trash.pivotsSection': 'Pivots',
+  'trash.filesSection': 'Files',
+  'trash.emptyConfirm': 'Permanently delete everything in the trash? This cannot be undone.',
 
   // app body
   'app.preview.readOnly': 'Read-only',
@@ -322,6 +340,15 @@ const ja: Dict = {
   'topbar.openFolder': '保存フォルダを開く',
   'topbar.settings': '設定',
   'topbar.addFile': 'ファイル追加',
+  'topbar.trash': 'ゴミ箱',
+  'trash.title': 'ゴミ箱',
+  'trash.empty': 'ゴミ箱を空にする',
+  'trash.restore': '復元',
+  'trash.purge': '完全に削除',
+  'trash.isEmpty': 'ゴミ箱は空です',
+  'trash.pivotsSection': 'ピボット',
+  'trash.filesSection': 'ファイル',
+  'trash.emptyConfirm': 'ゴミ箱のすべての項目を完全に削除しますか？元に戻せません。',
 
   // アプリ本文
   'app.preview.readOnly': '読み取り専用',
