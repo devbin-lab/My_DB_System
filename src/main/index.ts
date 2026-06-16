@@ -427,6 +427,34 @@ function importFile(srcPath: string): LibraryItem | null {
   }
 }
 
+// 폴더를 재귀적으로 임포트한다.
+// - 폴더명을 피벗으로 만들고, 하위 폴더는 자식 피벗(부모→자식)으로 잇는다.
+// - 각 폴더의 파일은 타입별 저장(importFile) 후 그 폴더의 피벗에 연결한다.
+// - 가져온 파일들은 added 배열에 모은다(렌더러가 선택/표시에 사용).
+function importFolder(dirPath: string, parentPivotId: string | null, added: LibraryItem[]): void {
+  let entries: fs.Dirent[]
+  try {
+    entries = fs.readdirSync(dirPath, { withFileTypes: true })
+  } catch (err) {
+    console.error('importFolder failed:', dirPath, err)
+    return
+  }
+  const pivot = pivotStore.create(basename(dirPath))
+  if (parentPivotId) pivotLinkStore.add(parentPivotId, pivot.id) // 부모 → 자식
+  for (const entry of entries) {
+    const full = join(dirPath, entry.name)
+    if (entry.isDirectory()) {
+      importFolder(full, pivot.id, added)
+    } else if (entry.isFile()) {
+      const item = importFile(full)
+      if (item) {
+        added.push(item)
+        linkStore.add(pivot.id, item.id)
+      }
+    }
+  }
+}
+
 // 저장된 파일의 이름을 바꾼다(디스크 + DB 동시). 확장자가 바뀌면 타입도 재계산.
 function renameItem(id: string, newNameRaw: string): LibraryItem | null {
   const item = store.get(id)
@@ -560,8 +588,28 @@ function registerIpc(): void {
     return linkAll(result.filePaths.map(importFile).filter(Boolean) as LibraryItem[], pivotId)
   })
 
+  // 파일은 그대로 임포트, 폴더는 재귀 임포트(폴더명=피벗, 하위=자식 피벗).
+  // 집중 보기 중(pivotId)이면 드롭한 폴더의 루트 피벗을 그 피벗의 자식으로 둔다.
   ipcMain.handle('library:importPaths', (_e, paths: string[], pivotId?: string | null) => {
-    return linkAll(paths.map(importFile).filter(Boolean) as LibraryItem[], pivotId)
+    const added: LibraryItem[] = []
+    for (const p of paths) {
+      let isDir = false
+      try {
+        isDir = fs.statSync(p).isDirectory()
+      } catch {
+        continue
+      }
+      if (isDir) {
+        importFolder(p, pivotId ?? null, added)
+      } else {
+        const item = importFile(p)
+        if (item) {
+          added.push(item)
+          if (pivotId) linkStore.add(pivotId, item.id)
+        }
+      }
+    }
+    return added
   })
 
   ipcMain.handle('library:rename', (_e, id: string, newName: string) =>

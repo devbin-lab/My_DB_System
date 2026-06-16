@@ -229,10 +229,9 @@ export default function App() {
     const paths = Array.from(e.dataTransfer.files).map((f) => window.api.getPathForFile(f))
     if (paths.length === 0) return
     const added = await window.api.importPaths(paths, importPivotId)
-    if (added.length > 0) {
-      await refresh()
-      setSelectedId(added[0].id)
-    }
+    // 폴더 드롭은 파일 외에 피벗/연결도 만들 수 있으므로 항상 새로고침한다.
+    await refresh()
+    if (added.length > 0) setSelectedId(added[0].id)
   }
 
   const handleRemove = async (id: string) => {
