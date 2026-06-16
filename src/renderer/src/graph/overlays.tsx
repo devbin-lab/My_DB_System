@@ -13,6 +13,36 @@ import {
 } from '../Icons'
 import type { GNode, GraphPalette, LinkSource, MenuMode, Target } from './types'
 
+// 앱 스타일의 확인 모달(OS 기본 confirm 대체)
+export function ConfirmDialog({
+  message,
+  confirmLabel,
+  onConfirm,
+  onCancel
+}: {
+  message: string
+  confirmLabel: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  const t = useT()
+  return (
+    <div className="modal-backdrop" onMouseDown={onCancel}>
+      <div className="confirm-dialog" onMouseDown={(e) => e.stopPropagation()}>
+        <p className="confirm-msg">{message}</p>
+        <div className="confirm-actions">
+          <button className="btn-ghost" onClick={onCancel}>
+            {t('common.cancel')}
+          </button>
+          <button className="btn-accent danger" onClick={onConfirm}>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // 집중 보기 헤더(현재 피벗 + 전체로 돌아가기)
 export function PivotBanner({
   activePivot,
@@ -264,7 +294,7 @@ export function NodeMenu({
   onRenamePivot,
   onRenameItem,
   onDeletePivot,
-  onDeletePivotCascade,
+  onRequestDeleteSubtree,
   onDeleteItem
 }: {
   menu: { x: number; y: number; node: GNode }
@@ -283,7 +313,7 @@ export function NodeMenu({
   onRenamePivot: (id: string, name: string) => void
   onRenameItem: (id: string, name: string) => void
   onDeletePivot: (id: string) => void
-  onDeletePivotCascade: (id: string) => void
+  onRequestDeleteSubtree: (id: string) => void
   onDeleteItem: (id: string) => void
 }) {
   const t = useT()
@@ -364,11 +394,7 @@ export function NodeMenu({
                 </button>
                 <button
                   className="danger"
-                  onClick={() => {
-                    if (!window.confirm(t('graph.deleteSubtreeConfirm'))) return
-                    onDeletePivotCascade(menu.node.refId)
-                    closeMenu()
-                  }}
+                  onClick={() => onRequestDeleteSubtree(menu.node.refId)}
                 >
                   <IconTrash size={14} />
                   <span>{t('graph.deleteSubtree')}</span>

@@ -3,6 +3,7 @@ import type { ItemLink, LibraryItem, Link, Pivot } from './types'
 import { useT } from './i18n'
 import type { GNode, GraphPalette, MenuMode, Target } from './graph/types'
 import {
+  ConfirmDialog,
   LinkingBanner,
   NodeMenu,
   PivotBanner,
@@ -183,6 +184,8 @@ export default function GraphView(props: Props) {
   const [menu, setMenu] = useState<{ x: number; y: number; node: GNode } | null>(null)
   const [menuMode, setMenuMode] = useState<MenuMode>('main')
   const [renameText, setRenameText] = useState('')
+  // 하위 전체 삭제 확인 대상 피벗 id(커스텀 확인 모달용)
+  const [confirmCascadeId, setConfirmCascadeId] = useState<string | null>(null)
 
   const closeMenu = () => {
     setMenu(null)
@@ -419,8 +422,23 @@ export default function GraphView(props: Props) {
           onRenamePivot={onRenamePivot}
           onRenameItem={onRenameItem}
           onDeletePivot={onDeletePivot}
-          onDeletePivotCascade={onDeletePivotCascade}
+          onRequestDeleteSubtree={(id) => {
+            setConfirmCascadeId(id)
+            closeMenu()
+          }}
           onDeleteItem={onDeleteItem}
+        />
+      )}
+
+      {confirmCascadeId && (
+        <ConfirmDialog
+          message={t('graph.deleteSubtreeConfirm')}
+          confirmLabel={t('graph.deleteSubtree')}
+          onConfirm={() => {
+            onDeletePivotCascade(confirmCascadeId)
+            setConfirmCascadeId(null)
+          }}
+          onCancel={() => setConfirmCascadeId(null)}
         />
       )}
 

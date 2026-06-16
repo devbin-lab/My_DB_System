@@ -1439,6 +1439,35 @@ button {
   border-color: var(--danger);
 }
 
+/* ---------- 확인 모달 ---------- */
+.confirm-dialog {
+  width: 380px;
+  max-width: calc(100vw - 48px);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 22px;
+  animation: modal-pop 0.18s ease-out;
+}
+
+.confirm-msg {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text);
+  margin: 0 0 18px;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-accent.danger {
+  background: var(--danger);
+}
+
 /* ============ 설정 모달 ============ */
 .modal-backdrop {
   position: fixed;
