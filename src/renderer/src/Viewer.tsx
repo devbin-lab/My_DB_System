@@ -84,12 +84,15 @@ export default function Viewer({
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [tagInput, setTagInput] = useState(item.tags.join(', '))
   const [error, setError] = useState<string | null>(null)
+  // 미리보기를 지원하지 않는 파일(바이너리·대용량·ppt 등) → 외부 열기 안내
+  const [unsupported, setUnsupported] = useState(false)
 
   useEffect(() => {
     let revoked: string | null = null
     setText(null)
     setBlobUrl(null)
     setError(null)
+    setUnsupported(false)
 
     const load = async () => {
       try {
@@ -99,11 +102,17 @@ export default function Viewer({
             const url = base64ToBlobUrl(b64, MIME[item.ext] ?? 'application/octet-stream')
             revoked = url
             setBlobUrl(url)
+          } else {
+            setUnsupported(true)
           }
-        } else if (item.type === 'ppt') {
+        } else if (item.type === 'ppt' || item.type === 'xls') {
           // 바이너리 오피스 문서는 내장 미리보기 없이 외부 프로그램으로 연다.
+          setUnsupported(true)
         } else {
-          setText(await window.api.readText(item.id))
+          // 텍스트 계열. 바이너리/대용량이면 메인이 null을 주므로 미리보기 대신 안내.
+          const txt = await window.api.readText(item.id)
+          if (txt === null) setUnsupported(true)
+          else setText(txt)
         }
       } catch (e) {
         setError(String(e))
@@ -197,7 +206,7 @@ export default function Viewer({
             <img src={blobUrl} alt={item.name} />
           </div>
         )}
-        {item.type === 'ppt' && (
+        {unsupported && (
           <div className="no-preview">
             <p>{t('viewer.noPreview')}</p>
             <button className="btn-accent" onClick={() => window.api.openExternal(item.id)}>

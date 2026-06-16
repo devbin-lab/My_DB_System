@@ -73,7 +73,7 @@ function updateConfig(patch: Partial<AppConfig>): void {
 }
 
 // ---------- 타입 ----------
-export type ItemType = 'md' | 'pdf' | 'csv' | 'code' | 'image' | 'ppt' | 'other'
+export type ItemType = 'md' | 'pdf' | 'csv' | 'code' | 'image' | 'ppt' | 'xls' | 'other'
 
 export interface LibraryItem {
   id: string
@@ -95,6 +95,7 @@ const TYPE_DIRS: Record<ItemType, string> = {
   code: 'Code',
   image: 'Images',
   ppt: 'Slides',
+  xls: 'Excel',
   other: 'Other'
 }
 
@@ -112,6 +113,7 @@ function detectType(ext: string): ItemType {
   if (e === '.pdf') return 'pdf'
   if (e === '.csv' || e === '.tsv') return 'csv'
   if (e === '.ppt' || e === '.pptx') return 'ppt'
+  if (e === '.xls' || e === '.xlsx' || e === '.xlsm') return 'xls'
   if (CODE_EXTS.has(e)) return 'code'
   if (IMAGE_EXTS.has(e)) return 'image'
   return 'other'
@@ -177,6 +179,13 @@ function initDb(): void {
   // 구버전(윈도우)에서 만든 DB는 rel_path에 역슬래시가 들어있다.
   // 같은 데이터 폴더를 OS 간 공유할 수 있도록 '/'로 일괄 정규화한다(1회성, 이후엔 대상 없음).
   db.exec("UPDATE items SET rel_path = REPLACE(rel_path, '\\', '/') WHERE instr(rel_path, '\\') > 0;")
+
+  // ppt 타입 도입 전에 'other'로 분류됐던 pptx/ppt 파일을 'ppt'로 재분류(1회성).
+  db.exec("UPDATE items SET type = 'ppt' WHERE type = 'other' AND (ext = '.ppt' OR ext = '.pptx');")
+  // xls 타입 도입 전에 'other'로 분류됐던 엑셀 파일을 'xls'로 재분류(1회성).
+  db.exec(
+    "UPDATE items SET type = 'xls' WHERE type = 'other' AND (ext = '.xls' OR ext = '.xlsx' OR ext = '.xlsm');"
+  )
 }
 
 export interface Pivot {
@@ -602,18 +611,36 @@ function registerIpc(): void {
     return pivotLinkStore.list()
   })
 
-  // 텍스트 계열 파일 내용 읽기
-  ipcMain.handle('library:readText', (_e, id: string) => {
+  // 미리보기로 읽을 최대 파일 크기(이보다 크면 미리보기하지 않는다)
+  const PREVIEW_MAX_BYTES = 5 * 1024 * 1024
+
+  // 텍스트 계열 파일 내용 읽기.
+  // 비동기로 읽어 메인 프로세스가 멈추지 않게 하고, 너무 크거나 바이너리(NUL 포함)면
+  // null을 돌려준다. (pptx 등 바이너리를 텍스트로 읽다 앱이 멈추는 문제 방지)
+  ipcMain.handle('library:readText', async (_e, id: string) => {
     const item = store.get(id)
     if (!item) return null
-    return fs.readFileSync(item.storedPath, 'utf8')
+    try {
+      const stat = await fs.promises.stat(item.storedPath)
+      if (stat.size > PREVIEW_MAX_BYTES) return null
+      const buf = await fs.promises.readFile(item.storedPath)
+      if (buf.includes(0)) return null // NUL 바이트 = 바이너리로 간주
+      return buf.toString('utf8')
+    } catch {
+      return null
+    }
   })
 
-  // pdf/이미지 등 바이너리는 base64로 전달
-  ipcMain.handle('library:readBinary', (_e, id: string) => {
+  // pdf/이미지 등 바이너리는 base64로 전달(비동기로 읽어 블로킹 방지)
+  ipcMain.handle('library:readBinary', async (_e, id: string) => {
     const item = store.get(id)
     if (!item) return null
-    return fs.readFileSync(item.storedPath).toString('base64')
+    try {
+      const buf = await fs.promises.readFile(item.storedPath)
+      return buf.toString('base64')
+    } catch {
+      return null
+    }
   })
 
   // 외부 프로그램(기본 연결 프로그램)으로 열기

@@ -60,6 +60,7 @@ const ko: Dict = {
   'type.code': '코드',
   'type.image': '이미지',
   'type.ppt': 'PPT',
+  'type.xls': '엑셀',
   'type.other': '기타',
   'app.storage.moveFailed':
     '저장소 이동에 실패했습니다. 폴더 권한이나 사용 중인 파일을 확인해주세요.',
@@ -199,6 +200,7 @@ const en: Dict = {
   'type.code': 'Code',
   'type.image': 'Image',
   'type.ppt': 'PPT',
+  'type.xls': 'Excel',
   'type.other': 'Other',
   'app.storage.moveFailed':
     'Failed to move storage. Check folder permissions or files currently in use.',
@@ -340,6 +342,7 @@ const ja: Dict = {
   'type.code': 'コード',
   'type.image': '画像',
   'type.ppt': 'PPT',
+  'type.xls': 'Excel',
   'type.other': 'その他',
   'app.storage.moveFailed':
     'ストレージの移動に失敗しました。フォルダの権限や使用中のファイルを確認してください。',
