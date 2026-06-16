@@ -59,6 +59,7 @@ const ko: Dict = {
   'type.csv': 'CSV',
   'type.code': '코드',
   'type.image': '이미지',
+  'type.ppt': 'PPT',
   'type.other': '기타',
   'app.storage.moveFailed':
     '저장소 이동에 실패했습니다. 폴더 권한이나 사용 중인 파일을 확인해주세요.',
@@ -138,6 +139,7 @@ const ko: Dict = {
   'viewer.showInFolder': '폴더에서 보기',
   'viewer.tagsPlaceholder': '태그 (쉼표로 구분)',
   'viewer.suggestedTags': '기존 태그',
+  'viewer.noPreview': '이 형식은 미리보기를 지원하지 않습니다.',
   'viewer.emptyCsv': '빈 CSV 파일입니다.',
   'viewer.csvNote': '처음 1,000행만 표시됩니다.',
 
@@ -196,6 +198,7 @@ const en: Dict = {
   'type.csv': 'CSV',
   'type.code': 'Code',
   'type.image': 'Image',
+  'type.ppt': 'PPT',
   'type.other': 'Other',
   'app.storage.moveFailed':
     'Failed to move storage. Check folder permissions or files currently in use.',
@@ -276,6 +279,7 @@ const en: Dict = {
   'viewer.showInFolder': 'Show in folder',
   'viewer.tagsPlaceholder': 'Tags (comma separated)',
   'viewer.suggestedTags': 'Existing tags',
+  'viewer.noPreview': 'Preview is not available for this file type.',
   'viewer.emptyCsv': 'This CSV file is empty.',
   'viewer.csvNote': 'Showing the first 1,000 rows only.',
 
@@ -335,6 +339,7 @@ const ja: Dict = {
   'type.csv': 'CSV',
   'type.code': 'コード',
   'type.image': '画像',
+  'type.ppt': 'PPT',
   'type.other': 'その他',
   'app.storage.moveFailed':
     'ストレージの移動に失敗しました。フォルダの権限や使用中のファイルを確認してください。',
@@ -414,6 +419,7 @@ const ja: Dict = {
   'viewer.showInFolder': 'フォルダで表示',
   'viewer.tagsPlaceholder': 'タグ（カンマ区切り）',
   'viewer.suggestedTags': '既存のタグ',
+  'viewer.noPreview': 'この形式はプレビューに対応していません。',
   'viewer.emptyCsv': '空のCSVファイルです。',
   'viewer.csvNote': '最初の1,000行のみ表示しています。',
 

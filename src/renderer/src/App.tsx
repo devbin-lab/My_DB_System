@@ -77,6 +77,7 @@ export const TYPE_COLORS: Record<ItemType, string> = {
   csv: '#5fd068',
   code: '#5ab8f5',
   image: '#f5c95a',
+  ppt: '#e8703a',
   other: '#8a8fa8'
 }
 
@@ -180,7 +181,7 @@ export default function App() {
 
   // 라이브러리에 존재하는 타입(필터 칩 노출용)과 모든 태그(자동완성용)
   const presentTypes = useMemo(() => {
-    const order: ItemType[] = ['md', 'pdf', 'csv', 'code', 'image', 'other']
+    const order: ItemType[] = ['md', 'pdf', 'ppt', 'csv', 'code', 'image', 'other']
     const set = new Set(items.map((i) => i.type))
     return order.filter((tp) => set.has(tp))
   }, [items])

@@ -73,7 +73,7 @@ function updateConfig(patch: Partial<AppConfig>): void {
 }
 
 // ---------- 타입 ----------
-export type ItemType = 'md' | 'pdf' | 'csv' | 'code' | 'image' | 'other'
+export type ItemType = 'md' | 'pdf' | 'csv' | 'code' | 'image' | 'ppt' | 'other'
 
 export interface LibraryItem {
   id: string
@@ -94,6 +94,7 @@ const TYPE_DIRS: Record<ItemType, string> = {
   csv: 'CSV',
   code: 'Code',
   image: 'Images',
+  ppt: 'Slides',
   other: 'Other'
 }
 
@@ -110,6 +111,7 @@ function detectType(ext: string): ItemType {
   if (e === '.md' || e === '.markdown') return 'md'
   if (e === '.pdf') return 'pdf'
   if (e === '.csv' || e === '.tsv') return 'csv'
+  if (e === '.ppt' || e === '.pptx') return 'ppt'
   if (CODE_EXTS.has(e)) return 'code'
   if (IMAGE_EXTS.has(e)) return 'image'
   return 'other'

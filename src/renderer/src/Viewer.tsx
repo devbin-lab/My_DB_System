@@ -100,6 +100,8 @@ export default function Viewer({
             revoked = url
             setBlobUrl(url)
           }
+        } else if (item.type === 'ppt') {
+          // 바이너리 오피스 문서는 내장 미리보기 없이 외부 프로그램으로 연다.
         } else {
           setText(await window.api.readText(item.id))
         }
@@ -193,6 +195,14 @@ export default function Viewer({
         {item.type === 'image' && blobUrl && (
           <div className="image-wrap">
             <img src={blobUrl} alt={item.name} />
+          </div>
+        )}
+        {item.type === 'ppt' && (
+          <div className="no-preview">
+            <p>{t('viewer.noPreview')}</p>
+            <button className="btn-accent" onClick={() => window.api.openExternal(item.id)}>
+              {t('viewer.openExternal')}
+            </button>
           </div>
         )}
       </div>

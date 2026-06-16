@@ -1,4 +1,4 @@
-export type ItemType = 'md' | 'pdf' | 'csv' | 'code' | 'image' | 'other'
+export type ItemType = 'md' | 'pdf' | 'csv' | 'code' | 'image' | 'ppt' | 'other'
 
 export interface LibraryItem {
   id: string
