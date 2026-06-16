@@ -28,6 +28,10 @@ const positionCache = new Map<string, { x: number; y: number; vx: number; vy: nu
 // 리사이즈 이후 캐시된 노드 좌표와 중심이 어긋나 노드 전체가 한 방향으로 쏠린다.
 let gravityCenter: { x: number; y: number } | null = null
 
+// 뷰 변환(줌/패닝)도 유지한다. 그래프뷰 재마운트(목록 ↔ 그래프 전환) 시 0으로 초기화되면
+// 노드 군집이 한쪽으로 치우쳐 보이므로, 떠날 때의 뷰를 그대로 복원한다.
+let viewState: { scale: number; offsetX: number; offsetY: number } | null = null
+
 // 테마별 캔버스 기본 색(App에서 palette로 덮어쓴다)
 const DEFAULT_PALETTE: GraphPalette = {
   file: '#9aa1b5',
@@ -352,14 +356,14 @@ export default function GraphView(props: Props) {
     const centerX = gravityCenter.x
     const centerY = gravityCenter.y
 
-    // 뷰 변환 상태 (resize에서 보정하므로 먼저 선언)
-    let scale = 1
-    let offsetX = 0
-    let offsetY = 0
+    // 뷰 변환 상태. 이전 뷰(줌/패닝)가 있으면 복원하고, 없으면 중력 중심을 화면 중앙에 맞춘다.
+    let scale = viewState ? viewState.scale : 1
+    let offsetX = viewState ? viewState.offsetX : width / 2 - centerX
+    let offsetY = viewState ? viewState.offsetY : height / 2 - centerY
     let tweening = false
-    let targetScale = 1
-    let targetOffsetX = 0
-    let targetOffsetY = 0
+    let targetScale = scale
+    let targetOffsetX = offsetX
+    let targetOffsetY = offsetY
     let focusId: string | null = null
 
     const resize = () => {
@@ -880,6 +884,7 @@ export default function GraphView(props: Props) {
       // 현재 보이는 노드 위치를 저장(집중 보기로 숨겨진 노드의 좌표는 유지해야 하므로
       // 통째로 교체하지 않고 갱신만 한다). 실제로 삭제된 노드만 정리한다.
       for (const n of nodes) positionCache.set(n.id, { x: n.x, y: n.y, vx: n.vx, vy: n.vy })
+      viewState = { scale, offsetX, offsetY }
       const liveIds = new Set<string>([
         ...items.map((i) => `item:${i.id}`),
         ...pivots.map((p) => `pivot:${p.id}`)
