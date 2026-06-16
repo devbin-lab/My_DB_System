@@ -539,6 +539,34 @@ function removePivotCascade(rootId: string): void {
   for (const pid of subtree) pivotStore.softDelete(pid)
 }
 
+// 피벗을 하위 전체와 함께 휴지통에서 복원한다(cascade 삭제의 역방향).
+// 서브트리 피벗 + 그 피벗들에 연결된 파일을 모두 복원한다.
+function restorePivotCascade(rootId: string): void {
+  const pivotLinkRows = db.prepare('SELECT a_id, b_id FROM pivot_links').all() as Array<{
+    a_id: string
+    b_id: string
+  }>
+  const subtree = new Set<string>([rootId])
+  const queue = [rootId]
+  while (queue.length > 0) {
+    const cur = queue.shift() as string
+    for (const l of pivotLinkRows) {
+      if (l.a_id === cur && !subtree.has(l.b_id)) {
+        subtree.add(l.b_id)
+        queue.push(l.b_id)
+      }
+    }
+  }
+  for (const pid of subtree) pivotStore.restore(pid)
+  const linkRows = db.prepare('SELECT pivot_id, item_id FROM links').all() as Array<{
+    pivot_id: string
+    item_id: string
+  }>
+  for (const l of linkRows) {
+    if (subtree.has(l.pivot_id)) store.restore(l.item_id)
+  }
+}
+
 // 저장된 파일의 이름을 바꾼다(디스크 + DB 동시). 확장자가 바뀌면 타입도 재계산.
 function renameItem(id: string, newNameRaw: string): LibraryItem | null {
   const item = store.get(id)
@@ -823,8 +851,9 @@ function registerIpc(): void {
   }))
 
   ipcMain.handle('trash:restore', (_e, kind: 'item' | 'pivot', id: string) => {
+    // 피벗 복원은 하위(자식 피벗·연결된 파일)까지 함께 되살린다.
     if (kind === 'item') store.restore(id)
-    else pivotStore.restore(id)
+    else restorePivotCascade(id)
   })
 
   ipcMain.handle('trash:purge', (_e, kind: 'item' | 'pivot', id: string) => {
