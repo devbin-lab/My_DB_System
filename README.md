@@ -1,65 +1,52 @@
 <div align="center">
 
-# 🗂️ My DB System
+# My DB System
 
-**흩어진 자료를 한곳에 모으고, 관계로 연결해 한눈에 보는 나만의 데이터 저장소**
+**흩어진 자료를 한곳에 모으고, 주제 중심의 그래프로 연결해 관리하는 데스크톱 애플리케이션**
 
-파일을 보관하는 것을 넘어, 주제(피벗)를 중심으로 자료들이 어떻게 이어지는지<br/>
-그래프로 펼쳐 보여주는 데스크톱 앱입니다.
+파일을 저장하는 것을 넘어, 자료들이 어떤 주제로 어떻게 이어지는지를
+관계 그래프로 시각화합니다. 모든 데이터는 사용자의 로컬 디스크에만 보관됩니다.
 
-![Electron](https://img.shields.io/badge/Electron-33-47848F?logo=electron&logoColor=white)
-![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-better--sqlite3-003B57?logo=sqlite&logoColor=white)
-[![Release](https://img.shields.io/github/v/release/devbin-lab/My_DB_System?label=다운로드)](https://github.com/devbin-lab/My_DB_System/releases/latest)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey.svg)
 
-[**⬇️ 다운로드**](#-다운로드--설치) · [**✨ 주요 기능**](#-주요-기능) · [**💡 이런 분께 추천**](#-이런-분께-추천)
+[소개](#소개) · [주요 기능](#주요-기능) · [다운로드](#다운로드-및-설치) · [자주 묻는 질문](#자주-묻는-질문)
 
 </div>
 
 ---
 
-## My DB System 이란?
+## 소개
 
-자료는 점점 쌓이는데, 폴더는 깊어지고 "그때 그 파일 어디 뒀더라" 하는 경험 있으시죠.
+자료가 쌓일수록 폴더 구조는 깊어지고, 필요한 파일을 다시 찾기는 어려워집니다.
+My DB System은 파일을 단순히 폴더에 보관하는 대신, **주제(피벗) 단위로 묶고 서로 연결**하여
+지식의 맥락을 하나의 그래프 화면에서 파악할 수 있도록 설계되었습니다.
 
-**My DB System** 은 파일을 단순히 폴더에 넣어두는 대신, **주제 단위로 묶고 서로 연결해서**
-지식이 어떻게 이어지는지 한 화면에 그래프로 보여줍니다. 마치 머릿속 생각의 지도를
-그대로 옮겨놓은 것처럼요.
+모든 데이터는 사용자가 지정한 로컬 폴더에만 저장됩니다. 별도의 계정, 로그인,
+상시 인터넷 연결이 필요하지 않으며, 메타데이터는 SQLite로 관리됩니다.
 
-모든 데이터는 **내 컴퓨터의 지정한 폴더 안에만** 저장됩니다. 클라우드 계정도, 로그인도,
-인터넷 연결도 필요 없습니다. 온전히 내 것인, 나만의 데이터베이스입니다.
+## 주요 기능
 
-## ✨ 주요 기능
+| 기능 | 설명 |
+|------|------|
+| 파일 보관함 | 마크다운 · PDF · CSV · 코드 · 이미지를 드래그 앤 드롭으로 저장하고, 내장 뷰어로 즉시 열람합니다. 외부 프로그램으로 열기도 지원합니다. |
+| 관계 그래프 뷰 | 외부 라이브러리 없이 Canvas로 구현한 force-directed 그래프로 자료 간 관계를 시각화합니다. |
+| 계층형 피벗 시스템 | 주제·프로젝트 단위의 허브(피벗)를 만들어 파일을 연결합니다. 부모–자식 피벗 계층을 구성하면 부모를 열었을 때 하위 피벗과 자료가 함께 펼쳐집니다. 파일 간 직접 연결도 지원합니다. |
+| 검색 및 정리 | 그래프에서 우클릭 시 방사형 검색이 펼쳐지며, 목록 화면에서는 타입 필터 · 정렬(최근/이름/크기) · 태그 필터를 제공합니다. |
+| 다국어 지원 | 한국어 · English · 日本語 를 지원합니다. 첫 실행 시 선택하고 설정에서 언제든 변경할 수 있습니다. |
+| 테마 | 슬레이트 · 라이트 · 네이비 3종 테마와 5종 포인트 색상을 제공합니다. |
+| 로컬 저장소 | 모든 데이터는 지정한 폴더에 타입별로 정리되어 보관되며 외부로 전송되지 않습니다. |
+| 첫 실행 마법사 | 최초 실행 시 언어 · 테마 · 저장 위치 · 검색 설정을 단계별로 안내합니다. |
+| 자동 업데이트 | 새 버전을 자동으로 내려받아 재시작 시 설치합니다(Windows · Linux). |
 
-| | 기능 | 설명 |
-|---|------|------|
-| 📥 | **간편한 파일 보관함** | 마크다운 · PDF · CSV · 코드 · 이미지를 **드래그앤드롭**으로 저장하고, 앱 안의 내장 뷰어로 바로 열람합니다. 원하면 외부 프로그램으로도 열 수 있어요. |
-| 🕸️ | **관계 그래프 뷰** | 자료들이 살아 움직이는 듯한 그래프로 펼쳐집니다. 어떤 자료가 어떤 주제와 이어지는지 직관적으로 보입니다. |
-| 🎯 | **계층형 피벗(주제) 시스템** | 프로젝트·주제별 허브를 만들어 파일을 연결합니다. **부모→자식 피벗 계층**을 만들면, 부모 피벗을 열었을 때 자식과 그 하위 자료까지 한 번에 펼쳐집니다. 파일↔파일 연결도 지원해요. |
-| 🔍 | **방사형 검색 · 빠른 정리** | 그래프에서 빈 공간을 우클릭하면 검색 결과가 시계 방향으로 펼쳐집니다. 목록에서는 **타입 필터 · 정렬(최근/이름/크기) · 태그 클릭 필터**로 원하는 자료를 빠르게 찾아요. |
-| 🌐 | **다국어 지원** | **한국어 · English · 日本語** 를 지원합니다. 첫 실행 시 언어를 고르고, 언제든 설정에서 바꿀 수 있어요. |
-| 🎨 | **나만의 테마** | 슬레이트 · 라이트 · 네이비 3가지 테마와 5가지 포인트 색상으로 취향껏 꾸밉니다. |
-| 📂 | **내 손안의 저장소** | 모든 데이터는 내가 지정한 폴더에 타입별로 정리되어 보관됩니다. 정보는 SQLite로 안전하게 관리돼요. |
-| 🚀 | **친절한 첫 시작** | 설치 후 첫 실행 시, 언어 · 테마 · 저장 위치 · 검색 설정을 단계별 마법사로 안내합니다. |
-| 🔄 | **자동 업데이트** | 새 버전이 나오면 앱이 알아서 받아오고, 재시작할 때 설치합니다. 최초 1회만 내려받으면 끝. |
+## 다운로드 및 설치
 
-## 💡 이런 분께 추천
+최신 설치 파일은 [Releases 페이지](https://github.com/devbin-lab/My_DB_System/releases/latest)에서 내려받을 수 있습니다.
 
-- 📚 자료·메모·문서가 여기저기 흩어져 있어 정리가 필요한 분
-- 🧠 단순 폴더 정리를 넘어, **자료 사이의 연결과 맥락**을 보고 싶은 분
-- 🔒 클라우드 대신 **내 컴퓨터에 직접** 데이터를 보관하고 싶은 분
-- 🗺️ 프로젝트·연구·취미 자료를 주제별로 묶어 관리하고 싶은 분
-
-## ⬇️ 다운로드 · 설치
-
-최신 설치 파일은 **[Releases 페이지](https://github.com/devbin-lab/My_DB_System/releases/latest)** 에서 받으세요.
-
-| OS | 파일 | 설치 방법 |
-|----|------|-----------|
-| 🪟 **Windows** | `my-db-system-<버전>-setup.exe` | 내려받아 실행 → 설치 마법사를 따라가면 끝 |
-| 🐧 **Linux (우분투)** | `my-db-system-<버전>.AppImage` | 내려받은 뒤 실행 권한을 주고 실행 |
+| 운영체제 | 파일 | 설치 방법 |
+|----------|------|-----------|
+| Windows | `my-db-system-<버전>-setup.exe` | 실행 후 설치 마법사 진행 |
+| Linux (Ubuntu) | `my-db-system-<버전>.AppImage` | 실행 권한 부여 후 실행 |
 
 Linux에서 AppImage 실행:
 
@@ -68,89 +55,70 @@ chmod +x my-db-system-*.AppImage
 ./my-db-system-*.AppImage
 ```
 
-> 💡 설치 후에는 앱 안에서 **새 버전이 나오면 자동으로 업데이트**되므로, 최초 1회만 받으면 됩니다.
+설치 후에는 앱 내 자동 업데이트가 동작하므로 최초 1회만 내려받으면 됩니다.
 
-## ❓ 자주 묻는 질문
+## 자주 묻는 질문
 
-**Q. 인터넷 연결이 필요한가요?**
-아니요. 모든 데이터는 내 컴퓨터에 저장되며 오프라인으로 동작합니다. (업데이트 확인 시에만 연결을 사용합니다.)
+**인터넷 연결이 필요한가요?**
+필요하지 않습니다. 모든 데이터는 로컬에 저장되며 오프라인으로 동작합니다. 업데이트 확인 시에만 네트워크를 사용합니다.
 
-**Q. 제 데이터는 어디에 저장되나요?**
-첫 실행 때 지정한 폴더 안에, 파일 타입별로 정리되어 보관됩니다. 외부 서버로 전송되지 않습니다.
+**데이터는 어디에 저장되나요?**
+첫 실행 시 지정한 폴더에 파일 타입별로 정리되어 보관되며, 외부 서버로 전송되지 않습니다.
 
-**Q. 어떤 언어를 지원하나요?**
-한국어 · English · 日本語 를 지원합니다. 첫 실행 마법사에서 고르고, 이후 **설정 → 언어**에서 언제든 바꿀 수 있습니다.
+**지원 언어는 무엇인가요?**
+한국어 · English · 日本語 를 지원하며, 설정 화면에서 언제든 변경할 수 있습니다.
 
-**Q. 프로그램을 지울 때 설정도 같이 삭제하려면?**
-Windows에서 제거(언인스톨) 시 **"설정·사용 기록까지 완전 삭제"** 여부를 묻습니다. "예"를 고르면 다음 설치 때 초기 설정 마법사가 처음처럼 다시 표시됩니다. (직접 저장한 파일/라이브러리 데이터는 어느 경우든 보존됩니다.)
+**프로그램을 제거할 때 설정도 함께 삭제할 수 있나요?**
+Windows 제거 과정에서 설정 및 사용 기록의 완전 삭제 여부를 묻습니다. 삭제를 선택하면 다음 설치 시 첫 실행 마법사가 다시 표시됩니다. 사용자가 저장한 파일과 라이브러리 데이터는 어느 경우에도 보존됩니다.
 
-**Q. 무료인가요?**
-네. MIT 라이선스로 공개된 오픈소스이며 자유롭게 사용할 수 있습니다.
+**무료인가요?**
+MIT 라이선스로 공개된 오픈소스이며 자유롭게 사용할 수 있습니다.
 
----
-
-<details>
-<summary><b>🛠️ 개발자용 안내 (빌드 · 릴리스)</b></summary>
-
-### 개발 환경
+## 개발
 
 ```bash
-npm install   # 의존성 설치 + 네이티브 모듈 자동 리빌드(postinstall)
-npm run dev
+npm install   # 의존성 설치 및 네이티브 모듈 재빌드(postinstall)
+npm run dev   # 개발 모드 실행
 ```
 
-### 빌드
-
-`electron-builder`로 설치 파일을 만들며, 산출물은 `dist/`에 생성됩니다.
-`better-sqlite3`가 네이티브 모듈이라 **설치 파일은 실행할 OS에서 각각 빌드**해야 합니다.
-(`npm install`의 `postinstall`이 현재 OS·Electron 버전에 맞춰 자동 재빌드합니다.)
+설치 파일은 `electron-builder`로 생성하며 산출물은 `dist/`에 저장됩니다.
+`better-sqlite3`가 네이티브 모듈이므로 설치 파일은 배포 대상 OS에서 각각 빌드해야 합니다.
 
 ```bash
-npm run dist:win     # → dist/my-db-system-<ver>-setup.exe  (Windows / NSIS)
-npm run dist:linux   # → dist/my-db-system-<ver>.AppImage   (Linux)
-npm run pack:dir     # 설치 파일 없이 빠른 실행 확인 → dist/*-unpacked
+npm run dist:win     # Windows 설치 파일(NSIS)
+npm run dist:linux   # Linux AppImage
+npm run pack:dir     # 패키징 없이 빠른 실행 확인(dist/*-unpacked)
 ```
 
-> 앱 아이콘은 [`build/`](build/README.md)에 `icon.ico`(Windows)·`icon.png`(Linux)를
-> 넣으면 적용됩니다. 없으면 기본 Electron 아이콘이 쓰입니다.
+애플리케이션 아이콘은 [`build/`](build/README.md)의 `icon.ico`(Windows) · `icon.png`(Linux)를 사용합니다.
 
-### 릴리스 (배포)
+### 릴리스
 
-네이티브 모듈 때문에 **각 OS에서 직접 빌드해 GitHub 릴리스에 올립니다.**
+각 OS에서 직접 빌드하여 GitHub 릴리스에 업로드합니다.
 
-1. `package.json`의 `version`을 올립니다 (예: `0.1.0` → `0.1.1`)
-2. GitHub 토큰(repo 권한)을 환경변수로 지정하고 빌드·업로드합니다:
+1. `package.json`의 `version`을 증가시킵니다.
+2. GitHub 토큰을 환경 변수로 지정한 뒤 빌드·업로드합니다.
 
 ```powershell
-$env:GH_TOKEN = "ghp_xxx"   # Windows (PowerShell)
+$env:GH_TOKEN = "<token>"   # Windows (PowerShell)
 npm run release:win
 ```
 
 ```bash
-export GH_TOKEN=ghp_xxx      # Linux
+export GH_TOKEN=<token>      # Linux
 npm run release:linux
 ```
 
-`release:*`는 설치 파일과 업데이트 메타데이터(`latest.yml`/`latest-linux.yml`)를
-**초안(draft) 릴리스**로 올립니다. 내용 확인 후 GitHub에서 **Publish** 하면 사용자
-다운로드·자동 업데이트에 노출됩니다.
+`release:*` 명령은 설치 파일과 업데이트 메타데이터(`latest.yml` / `latest-linux.yml`)를
+초안(draft) 릴리스로 업로드합니다. 내용 확인 후 GitHub에서 Publish하면 다운로드 및
+자동 업데이트에 반영됩니다. 토큰 없이 `dist:*`로 빌드한 산출물을 릴리스에 수동으로
+첨부할 수도 있습니다.
 
-> **토큰 없이 수동 업로드**: `npm run dist:win` / `dist:linux`로 빌드한 뒤, GitHub →
-> **Releases → Draft a new release**에서 `dist/`의 설치 파일과 `latest*.yml`을 첨부해도 됩니다.
+## 기술 스택
 
-### 자동 업데이트 동작
+Electron 33 · React 18 · TypeScript 5 · Vite(electron-vite) · better-sqlite3 ·
+electron-updater. 그래프 뷰는 외부 라이브러리 없이 Canvas로 구현한 force-directed 그래프입니다.
 
-- 설치된 앱은 `electron-updater`로 GitHub 릴리스에서 새 버전을 찾습니다.
-- 설정창 → **업데이트 → 업데이트 확인**으로 수동 확인할 수 있고, 실행 후에도 한 번 자동 확인합니다.
-- **Windows(NSIS)** 와 **Linux(AppImage)** 에서 동작하며, 개발 모드(`npm run dev`)에서는 비활성화됩니다.
-
-### 기술 스택
-
-Electron 33 · React 18 · TypeScript 5 · Vite (electron-vite) · better-sqlite3
-그래프 뷰는 외부 라이브러리 없이 Canvas로 직접 구현한 force-directed 그래프입니다.
-
-</details>
-
-## 📜 License
+## 라이선스
 
 [MIT](LICENSE) © devbin
