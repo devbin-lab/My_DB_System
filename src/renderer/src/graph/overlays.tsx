@@ -365,6 +365,7 @@ export function NodeMenu({
                 <button
                   className="danger"
                   onClick={() => {
+                    if (!window.confirm(t('graph.deleteSubtreeConfirm'))) return
                     onDeletePivotCascade(menu.node.refId)
                     closeMenu()
                   }}

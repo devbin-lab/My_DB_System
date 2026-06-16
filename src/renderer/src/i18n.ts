@@ -169,6 +169,8 @@ const ko: Dict = {
   'graph.delete': '삭제',
   'graph.deletePivotOnly': '피벗만 삭제',
   'graph.deleteSubtree': '하위 전체 삭제',
+  'graph.deleteSubtreeConfirm':
+    '이 피벗과 하위 전체(자식 피벗·고아 파일)를 삭제할까요? 휴지통에서 복원할 수 있습니다.',
   'graph.noConnected': '연결된 대상이 없습니다',
   'graph.emptyPivot': '이 피벗에 연결된 파일이 없습니다.',
   'graph.empty': '비어 있습니다.',
@@ -321,6 +323,8 @@ const en: Dict = {
   'graph.delete': 'Delete',
   'graph.deletePivotOnly': 'Delete pivot only',
   'graph.deleteSubtree': 'Delete with contents',
+  'graph.deleteSubtreeConfirm':
+    'Delete this pivot and everything under it (child pivots and orphaned files)? You can restore from the trash.',
   'graph.noConnected': 'No connected targets',
   'graph.emptyPivot': 'No files are linked to this pivot.',
   'graph.empty': 'Nothing here yet.',
@@ -473,6 +477,8 @@ const ja: Dict = {
   'graph.delete': '削除',
   'graph.deletePivotOnly': 'ピボットのみ削除',
   'graph.deleteSubtree': '配下ごと削除',
+  'graph.deleteSubtreeConfirm':
+    'このピボットと配下すべて（子ピボット・孤立ファイル）を削除しますか？ゴミ箱から復元できます。',
   'graph.noConnected': 'リンクされた対象がありません',
   'graph.emptyPivot': 'このピボットにリンクされたファイルはありません。',
   'graph.empty': '何もありません。',
