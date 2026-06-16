@@ -308,6 +308,9 @@ export default function GraphView(props: Props) {
   // spawnRef: 새 피벗 노드를 우클릭한 위치에 고정 배치하기 위한 정보
   const spawnRef = useRef<{ id: string; x: number; y: number } | null>(null)
   const nodesRef = useRef<GNode[]>([])
+  // 재빌드 간 노드 위치를 보존하기 위한 캐시(id → 좌표/속도).
+  // 데이터가 바뀔 때마다 시뮬레이션이 처음부터 다시 펼쳐져 요동치는 것을 막는다.
+  const posRef = useRef(new Map<string, { x: number; y: number; vx: number; vy: number }>())
   const [naming, setNaming] = useState<{ pivotId: string; x: number; y: number } | null>(
     null
   )
@@ -535,17 +538,29 @@ export default function GraphView(props: Props) {
     const nodes: GNode[] = []
     const edges: GEdge[] = []
     const idx = new Map<string, number>()
+    // 첫 빌드(보존된 위치 없음)인지, 이번에 새로 생긴 노드 인덱스는 무엇인지 추적
+    const isFirstBuild = posRef.current.size === 0
+    const newIndices: number[] = []
     const add = (n: Omit<GNode, 'x' | 'y' | 'vx' | 'vy' | 'fixed' | 'h'>) => {
-      idx.set(n.id, nodes.length)
-      nodes.push({
-        ...n,
-        x: width / 2 + (Math.random() - 0.5) * Math.min(width, 600),
-        y: height / 2 + (Math.random() - 0.5) * Math.min(height, 600),
-        vx: 0,
-        vy: 0,
-        fixed: false,
-        h: 0
-      })
+      const i = nodes.length
+      idx.set(n.id, i)
+      const saved = posRef.current.get(n.id)
+      if (saved) {
+        // 기존 노드는 이전 위치/속도를 그대로 복원 → 튀지 않음
+        nodes.push({ ...n, x: saved.x, y: saved.y, vx: saved.vx, vy: saved.vy, fixed: false, h: 0 })
+      } else {
+        // 새 노드는 일단 중심 근처에 두고(아래에서 이웃 근처로 재배치)
+        newIndices.push(i)
+        nodes.push({
+          ...n,
+          x: width / 2 + (Math.random() - 0.5) * Math.min(width, 600),
+          y: height / 2 + (Math.random() - 0.5) * Math.min(height, 600),
+          vx: 0,
+          vy: 0,
+          fixed: false,
+          h: 0
+        })
+      }
     }
 
     for (const p of visible.pivots) {
@@ -583,6 +598,32 @@ export default function GraphView(props: Props) {
       const a = idx.get(`pivot:${l.aId}`)
       const b = idx.get(`pivot:${l.bId}`)
       if (a !== undefined && b !== undefined) edges.push({ a, b, dir: true })
+    }
+
+    // 새 노드(첫 빌드 제외)는 연결된 기존 노드들의 평균 위치 근처에 등장시켜
+    // 멀리서 날아오지 않게 한다.
+    if (!isFirstBuild && newIndices.length > 0) {
+      const isNew = new Set(newIndices)
+      for (const ni of newIndices) {
+        let sx = 0
+        let sy = 0
+        let cnt = 0
+        for (const e of edges) {
+          if (e.a === ni && !isNew.has(e.b)) {
+            sx += nodes[e.b].x
+            sy += nodes[e.b].y
+            cnt++
+          } else if (e.b === ni && !isNew.has(e.a)) {
+            sx += nodes[e.a].x
+            sy += nodes[e.a].y
+            cnt++
+          }
+        }
+        if (cnt > 0) {
+          nodes[ni].x = sx / cnt + (Math.random() - 0.5) * 40
+          nodes[ni].y = sy / cnt + (Math.random() - 0.5) * 40
+        }
+      }
     }
 
     nodesRef.current = nodes
@@ -630,7 +671,13 @@ export default function GraphView(props: Props) {
     const SPRING_LEN = 90
     const GRAVITY = 0.012
     const DAMPING = 0.85
-    let alpha = 1
+    const MAX_V = 40 // 프레임당 최대 이동량(요동 방지 안전장치)
+
+    // 재가열(reheat) 세기:
+    // - 첫 빌드: 1 (전체 레이아웃)
+    // - 새 노드가 생김: 0.3 (부분적으로 자리 잡기)
+    // - 위치만 복원되는 변경(이름변경·태그 등): 0.05 (거의 안 움직임)
+    let alpha = isFirstBuild ? 1 : newIndices.length > 0 ? 0.3 : 0.05
 
     const BH_THETA2 = BH_THETA * BH_THETA
 
@@ -664,6 +711,11 @@ export default function GraphView(props: Props) {
         n.vy += (centerY - n.y) * GRAVITY * alpha
         n.vx *= DAMPING
         n.vy *= DAMPING
+        // 프레임당 이동량 제한(어떤 경우에도 휙 날지 않게)
+        if (n.vx > MAX_V) n.vx = MAX_V
+        else if (n.vx < -MAX_V) n.vx = -MAX_V
+        if (n.vy > MAX_V) n.vy = MAX_V
+        else if (n.vy < -MAX_V) n.vy = -MAX_V
         n.x += n.vx
         n.y += n.vy
       }
@@ -966,6 +1018,16 @@ export default function GraphView(props: Props) {
     canvas.addEventListener('wheel', onWheel, { passive: false })
 
     return () => {
+      // 현재 보이는 노드 위치를 저장(집중 보기로 숨겨진 노드의 좌표는 유지해야 하므로
+      // 통째로 교체하지 않고 갱신만 한다). 실제로 삭제된 노드만 정리한다.
+      for (const n of nodes) posRef.current.set(n.id, { x: n.x, y: n.y, vx: n.vx, vy: n.vy })
+      const liveIds = new Set<string>([
+        ...items.map((i) => `item:${i.id}`),
+        ...pivots.map((p) => `pivot:${p.id}`)
+      ])
+      for (const key of posRef.current.keys()) {
+        if (!liveIds.has(key)) posRef.current.delete(key)
+      }
       cancelAnimationFrame(raf)
       ro.disconnect()
       focusRef.current = null
