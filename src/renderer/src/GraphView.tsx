@@ -24,6 +24,10 @@ import { ringColor } from './graph/colors'
 // 전환)돼도 유지된다. → 그래프로 돌아왔을 때 이전 배치를 그대로 복원해 다시 펼쳐지지 않는다.
 const positionCache = new Map<string, { x: number; y: number; vx: number; vy: number }>()
 
+// 중력 중심(월드 좌표)도 위치 캐시와 함께 유지한다. effect가 재실행될 때마다 새로 계산하면,
+// 리사이즈 이후 캐시된 노드 좌표와 중심이 어긋나 노드 전체가 한 방향으로 쏠린다.
+let gravityCenter: { x: number; y: number } | null = null
+
 // 테마별 캔버스 기본 색(App에서 palette로 덮어쓴다)
 const DEFAULT_PALETTE: GraphPalette = {
   file: '#9aa1b5',
@@ -342,9 +346,11 @@ export default function GraphView(props: Props) {
     let width = parent.clientWidth
     let height = parent.clientHeight
 
-    // 중력 중심: 노드를 끌어당기는 월드 좌표 기준점. 리사이즈로 바뀌지 않게 고정한다.
-    const centerX = width / 2
-    const centerY = height / 2
+    // 중력 중심: 노드를 끌어당기는 월드 좌표 기준점. 최초 1회만 정하고 이후엔 유지한다
+    // (재실행/리사이즈로 바뀌면 캐시된 노드 좌표와 어긋나 쏠림이 생기므로).
+    if (!gravityCenter) gravityCenter = { x: width / 2, y: height / 2 }
+    const centerX = gravityCenter.x
+    const centerY = gravityCenter.y
 
     // 뷰 변환 상태 (resize에서 보정하므로 먼저 선언)
     let scale = 1
