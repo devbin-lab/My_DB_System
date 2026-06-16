@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { LibraryItem, Pivot } from './types'
 import { useT } from './i18n'
 import { IconX } from './Icons'
+import { ConfirmDialog } from './graph/overlays'
 
 function extLabel(item: LibraryItem): string {
   const e = item.ext.replace('.', '').toUpperCase()
@@ -18,6 +19,7 @@ export default function TrashModal({
   const t = useT()
   const [items, setItems] = useState<LibraryItem[]>([])
   const [pivots, setPivots] = useState<Pivot[]>([])
+  const [confirmEmpty, setConfirmEmpty] = useState(false)
 
   const load = useCallback(async () => {
     const tr = await window.api.listTrash()
@@ -40,7 +42,7 @@ export default function TrashModal({
     onChanged()
   }
   const empty = async () => {
-    if (!window.confirm(t('trash.emptyConfirm'))) return
+    setConfirmEmpty(false)
     await window.api.emptyTrash()
     await load()
     onChanged()
@@ -49,6 +51,7 @@ export default function TrashModal({
   const isEmpty = items.length === 0 && pivots.length === 0
 
   return (
+    <>
     <div className="modal-backdrop" onMouseDown={onClose}>
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
@@ -105,7 +108,7 @@ export default function TrashModal({
               )}
 
               <div className="trash-foot">
-                <button className="btn-ghost danger" onClick={empty}>
+                <button className="btn-ghost danger" onClick={() => setConfirmEmpty(true)}>
                   {t('trash.empty')}
                 </button>
               </div>
@@ -114,5 +117,15 @@ export default function TrashModal({
         </div>
       </div>
     </div>
+
+    {confirmEmpty && (
+      <ConfirmDialog
+        message={t('trash.emptyConfirm')}
+        confirmLabel={t('trash.empty')}
+        onConfirm={empty}
+        onCancel={() => setConfirmEmpty(false)}
+      />
+    )}
+    </>
   )
 }
