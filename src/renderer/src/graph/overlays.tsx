@@ -249,6 +249,7 @@ export function RadialSearch({
 // 노드 우클릭 컨텍스트 메뉴(이름변경/연결/연결취소/삭제)
 export function NodeMenu({
   menu,
+  pivotHasContent,
   menuMode,
   setMenuMode,
   renameText,
@@ -267,6 +268,7 @@ export function NodeMenu({
   onDeleteItem
 }: {
   menu: { x: number; y: number; node: GNode }
+  pivotHasContent: boolean
   menuMode: MenuMode
   setMenuMode: (m: MenuMode) => void
   renameText: string
@@ -324,43 +326,55 @@ export function NodeMenu({
               <IconScissors size={14} />
               <span>{t('graph.disconnect')}</span>
             </button>
-            <button
-              className="danger"
-              onClick={() => {
-                // 피벗은 '피벗만 / 하위 전체' 선택 단계로, 파일은 바로 삭제(휴지통)
-                if (menu.node.kind === 'pivot') setMenuMode('delete')
-                else {
+            {menu.node.kind === 'item' && (
+              <button
+                className="danger"
+                onClick={() => {
                   onDeleteItem(menu.node.refId)
                   closeMenu()
-                }
-              }}
-            >
-              <IconTrash size={14} />
-              <span>{t('graph.delete')}</span>
-            </button>
+                }}
+              >
+                <IconTrash size={14} />
+                <span>{t('graph.delete')}</span>
+              </button>
+            )}
+            {menu.node.kind === 'pivot' && !pivotHasContent && (
+              <button
+                className="danger"
+                onClick={() => {
+                  onDeletePivot(menu.node.refId)
+                  closeMenu()
+                }}
+              >
+                <IconTrash size={14} />
+                <span>{t('graph.delete')}</span>
+              </button>
+            )}
+            {menu.node.kind === 'pivot' && pivotHasContent && (
+              <>
+                <button
+                  className="danger"
+                  onClick={() => {
+                    onDeletePivot(menu.node.refId)
+                    closeMenu()
+                  }}
+                >
+                  <IconTrash size={14} />
+                  <span>{t('graph.deletePivotOnly')}</span>
+                </button>
+                <button
+                  className="danger"
+                  onClick={() => {
+                    onDeletePivotCascade(menu.node.refId)
+                    closeMenu()
+                  }}
+                >
+                  <IconTrash size={14} />
+                  <span>{t('graph.deleteSubtree')}</span>
+                </button>
+              </>
+            )}
           </>
-        )}
-
-        {menuMode === 'delete' && (
-          <div className="node-menu-list">
-            <button
-              onClick={() => {
-                onDeletePivot(menu.node.refId)
-                closeMenu()
-              }}
-            >
-              {t('graph.deletePivotOnly')}
-            </button>
-            <button
-              className="danger"
-              onClick={() => {
-                onDeletePivotCascade(menu.node.refId)
-                closeMenu()
-              }}
-            >
-              {t('graph.deleteSubtree')}
-            </button>
-          </div>
         )}
 
         {menuMode === 'rename' && (

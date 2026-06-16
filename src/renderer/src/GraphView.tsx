@@ -400,6 +400,11 @@ export default function GraphView(props: Props) {
       {menu && (
         <NodeMenu
           menu={menu}
+          pivotHasContent={
+            menu.node.kind === 'pivot' &&
+            (links.some((l) => l.pivotId === menu.node.refId) ||
+              pivotLinks.some((l) => l.aId === menu.node.refId))
+          }
           menuMode={menuMode}
           setMenuMode={setMenuMode}
           renameText={renameText}
