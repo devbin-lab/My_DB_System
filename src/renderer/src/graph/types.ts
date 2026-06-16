@@ -30,6 +30,16 @@ export interface Target {
   kind: 'pivot' | 'item'
 }
 
+// 노드 컨텍스트 메뉴 모드
+export type MenuMode = 'main' | 'connect' | 'disconnect' | 'rename'
+
+// 연결 모드의 소스 노드
+export interface LinkSource {
+  refId: string
+  kind: 'pivot' | 'item'
+  label: string
+}
+
 // 테마별 캔버스 색은 App에서 palette로 내려준다
 export interface GraphPalette {
   file: string
