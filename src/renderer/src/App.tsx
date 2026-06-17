@@ -183,6 +183,21 @@ export default function App() {
     }
   }
 
+  const exportBackup = async () => {
+    const dest = await window.api.exportBackup()
+    if (dest) alert(t('app.backup.exported', { path: dest }))
+  }
+
+  const openBackup = async () => {
+    const newDir = await window.api.openBackup()
+    if (newDir === dataDir) return
+    setDataDir(newDir)
+    setActivePivotId(null)
+    setSelectedId(null)
+    setPreviewId(null)
+    await refresh()
+  }
+
   // 라이브러리에 존재하는 타입(필터 칩 노출용)과 모든 태그(자동완성용)
   const presentTypes = useMemo(() => {
     const order: ItemType[] = ['md', 'pdf', 'ppt', 'csv', 'xls', 'code', 'image', 'other']
@@ -578,6 +593,8 @@ export default function App() {
           onChange={updateSetting}
           onChangeStorage={changeStorage}
           onOpenStorage={() => window.api.openDataDir()}
+          onExportBackup={exportBackup}
+          onImportBackup={openBackup}
           onClose={() => setSettingsOpen(false)}
         />
       )}

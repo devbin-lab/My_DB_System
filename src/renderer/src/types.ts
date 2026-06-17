@@ -72,6 +72,8 @@ export interface Api {
   getStorageDir: () => Promise<string>
   chooseStorageDir: () => Promise<string | null>
   setStorageDir: (dir: string) => Promise<string>
+  exportBackup: () => Promise<string | null>
+  openBackup: () => Promise<string>
   isOnboarded: () => Promise<boolean>
   completeOnboarding: () => Promise<boolean>
   getSettings: () => Promise<Settings>

@@ -661,6 +661,42 @@ function registerIpc(): void {
     return dataDir
   })
 
+  // 백업 내보내기: 저장소 전체(files/ + library.db)를 선택한 폴더 아래에
+  // 타임스탬프 폴더로 복사한다. 복사 전 WAL 체크포인트로 DB 일관성을 보장한다.
+  // 반환: 생성된 백업 폴더 경로(취소 시 null).
+  ipcMain.handle('backup:export', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory'],
+      title: '백업을 저장할 폴더 선택'
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    try {
+      db.pragma('wal_checkpoint(TRUNCATE)') // WAL을 본 DB로 합쳐 일관된 사본 보장
+    } catch (err) {
+      console.error('wal_checkpoint failed:', err)
+    }
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+    const destDir = join(result.filePaths[0], `MyDataSystem-backup-${stamp}`)
+    await fs.promises.cp(dataDir, destDir, { recursive: true }) // 대용량도 메인 블로킹 없이
+    return destDir
+  })
+
+  // 백업 가져오기(열기): 선택한 폴더를 그대로 저장소로 연결한다(이동/병합 없음).
+  // 현재 데이터는 기존 위치에 그대로 남는다. 반환: 새 저장소 경로(취소 시 현재 경로).
+  ipcMain.handle('backup:open', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory'],
+      title: '백업(저장소) 폴더 선택'
+    })
+    if (result.canceled || result.filePaths.length === 0) return dataDir
+    const dir = result.filePaths[0]
+    if (dir === dataDir) return dataDir
+    db.close()
+    updateConfig({ storageDir: dir })
+    openStorage(dir)
+    return dataDir
+  })
+
   ipcMain.handle('app:getVersion', () => app.getVersion())
 
   // ----- 첫 실행 온보딩 -----

@@ -115,6 +115,8 @@ export default function SettingsModal({
   onChange,
   onChangeStorage,
   onOpenStorage,
+  onExportBackup,
+  onImportBackup,
   onClose
 }: {
   settings: Settings
@@ -122,6 +124,8 @@ export default function SettingsModal({
   onChange: (key: keyof Settings, value: unknown) => void
   onChangeStorage: () => void
   onOpenStorage: () => void
+  onExportBackup: () => void
+  onImportBackup: () => void
   onClose: () => void
 }) {
   const t = useT()
@@ -200,6 +204,19 @@ export default function SettingsModal({
               </button>
               <button className="btn-ghost" onClick={onOpenStorage}>
                 {t('settings.storage.open')}
+              </button>
+            </div>
+          </section>
+
+          <section className="settings-group">
+            <h3>{t('settings.backup.title')}</h3>
+            <p className="settings-desc">{t('settings.backup.desc')}</p>
+            <div className="storage-actions">
+              <button className="btn-ghost" onClick={onExportBackup}>
+                {t('settings.backup.export')}
+              </button>
+              <button className="btn-ghost" onClick={onImportBackup}>
+                {t('settings.backup.import')}
               </button>
             </div>
           </section>
