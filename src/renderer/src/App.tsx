@@ -4,6 +4,7 @@ import GraphView from './GraphView'
 import SettingsModal from './Settings'
 import TrashModal from './Trash'
 import Onboarding from './Onboarding'
+import { NoticeDialog } from './graph/overlays'
 import { I18nContext, LOCALES, makeT } from './i18n'
 
 // 뷰어는 react-markdown / highlight.js / papaparse 등 무거운 의존성을 쓰므로
@@ -103,6 +104,7 @@ export default function App() {
   const [view, setView] = useState<'graph' | 'library'>('graph')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [trashOpen, setTrashOpen] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null) // 앱 내 알림 모달 메시지
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   // null = 아직 확인 중, false = 첫 실행(마법사 표시), true = 온보딩 완료
   const [onboarded, setOnboarded] = useState<boolean | null>(null)
@@ -179,13 +181,13 @@ export default function App() {
       setDataDir(newDir)
       await refresh()
     } catch {
-      alert(t('app.storage.moveFailed'))
+      setNotice(t('app.storage.moveFailed'))
     }
   }
 
   const exportBackup = async () => {
     const dest = await window.api.exportBackup()
-    if (dest) alert(t('app.backup.exported', { path: dest }))
+    if (dest) setNotice(t('app.backup.exported', { path: dest }))
   }
 
   const openBackup = async () => {
@@ -601,6 +603,9 @@ export default function App() {
 
       {/* 휴지통 모달 */}
       {trashOpen && <TrashModal onClose={() => setTrashOpen(false)} onChanged={refresh} />}
+
+      {/* 알림 모달 */}
+      {notice && <NoticeDialog message={notice} onClose={() => setNotice(null)} />}
 
       {/* 첫 실행 온보딩 마법사 */}
       {onboarded === false && (

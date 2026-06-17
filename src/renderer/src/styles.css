@@ -1456,6 +1456,8 @@ button {
   line-height: 1.6;
   color: var(--text);
   margin: 0 0 18px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .confirm-actions {

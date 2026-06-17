@@ -13,6 +13,29 @@ import {
 } from '../Icons'
 import type { GNode, GraphPalette, LinkSource, MenuMode, Target } from './types'
 
+// 앱 스타일의 알림 모달(OS 기본 alert 대체, 확인 버튼 하나)
+export function NoticeDialog({
+  message,
+  onClose
+}: {
+  message: string
+  onClose: () => void
+}) {
+  const t = useT()
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <div className="confirm-dialog" onMouseDown={(e) => e.stopPropagation()}>
+        <p className="confirm-msg">{message}</p>
+        <div className="confirm-actions">
+          <button className="btn-accent" onClick={onClose}>
+            {t('common.confirm')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // 앱 스타일의 확인 모달(OS 기본 confirm 대체)
 export function ConfirmDialog({
   message,
