@@ -265,6 +265,8 @@ export default function App() {
   // 생성 즉시 그래프에 나타나고, 이름은 그 자리에서 바로 입력받는다(GraphView)
   const createPivot = async (): Promise<Pivot> => {
     const pivot = await window.api.createPivot(t('app.pivot.new'))
+    // 피벗 집중 보기 중이면 새 피벗을 그 피벗의 자식으로 연결한다(부모 → 새 피벗).
+    if (activePivotId) await window.api.addPivotLink(activePivotId, pivot.id)
     await refresh()
     return pivot
   }

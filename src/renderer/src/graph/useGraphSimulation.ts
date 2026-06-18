@@ -16,6 +16,10 @@ let gravityCenter: { x: number; y: number } | null = null
 // 노드 군집이 한쪽으로 치우쳐 보이므로, 떠날 때의 뷰를 그대로 복원한다.
 let viewState: { scale: number; offsetX: number; offsetY: number } | null = null
 
+// 직전 빌드의 엣지 구성(연결 변화 감지용). 노드 수가 같아도 연결/해제로 엣지가 달라지면
+// 레이아웃을 살짝 재가열해 새 구조에 맞게 다시 펼친다(예: 새 피벗에 파일을 옮겼을 때).
+let prevEdgeSig: string | null = null
+
 interface NodeClickArg {
   refId: string
   kind: 'pivot' | 'item'
@@ -157,8 +161,52 @@ export function useGraphSimulation(params: SimulationParams): void {
       }
     }
 
+    // 부모→자식 피벗 관계 + 직계 파일 수(전체 그래프 기준, 집중 보기와 무관하게 일정).
+    const childAll = new Map<string, string[]>()
+    for (const pl of pivotLinks) {
+      const arr = childAll.get(pl.aId) ?? []
+      arr.push(pl.bId)
+      childAll.set(pl.aId, arr)
+    }
+    const fileCountAll = new Map<string, number>()
+    for (const l of links) fileCountAll.set(l.pivotId, (fileCountAll.get(l.pivotId) ?? 0) + 1)
+
+    // 서브트리 전체 크기 = 직계 파일 + 모든 하위 피벗·파일(재귀). 메모이즈 + 사이클 방지.
+    // → 직계뿐 아니라 중간·최상위 부모도 그 아래 전체에 비례해 커진다.
+    const subtreeCount = new Map<string, number>()
+    const visitingSub = new Set<string>()
+    const subtreeOf = (id: string): number => {
+      const c = subtreeCount.get(id)
+      if (c !== undefined) return c
+      if (visitingSub.has(id)) return 0
+      visitingSub.add(id)
+      let n = fileCountAll.get(id) ?? 0
+      for (const k of childAll.get(id) ?? []) n += 1 + subtreeOf(k)
+      visitingSub.delete(id)
+      subtreeCount.set(id, n)
+      return n
+    }
+    // 계층 높이 = 이 피벗 아래로 가장 깊은 자식 피벗까지의 단계 수(잎 피벗=0).
+    // 위로 올라갈수록(높이가 클수록) 반드시 커지도록 크기에 직접 반영한다.
+    const heightCache = new Map<string, number>()
+    const visitingH = new Set<string>()
+    const heightOf = (id: string): number => {
+      const c = heightCache.get(id)
+      if (c !== undefined) return c
+      if (visitingH.has(id)) return 0
+      visitingH.add(id)
+      let h = 0
+      for (const k of childAll.get(id) ?? []) h = Math.max(h, 1 + heightOf(k))
+      visitingH.delete(id)
+      heightCache.set(id, h)
+      return h
+    }
+    // 크기 = 기본 + 계층 높이(레벨당 +5) + 서브트리 양(같은 레벨 내 차이). 상한 44.
+    const pivotRadius = (id: string): number =>
+      Math.min(44, 10 + heightOf(id) * 5 + Math.sqrt(subtreeOf(id)) * 1.4)
+
     for (const p of visible.pivots) {
-      add({ id: `pivot:${p.id}`, refId: p.id, kind: 'pivot', label: p.name, r: 10 })
+      add({ id: `pivot:${p.id}`, refId: p.id, kind: 'pivot', label: p.name, r: pivotRadius(p.id) })
       // 방금 생성한 피벗은 우클릭한 자리에 고정(이름 입력 동안)
       const spawn = spawnRef.current
       if (spawn && spawn.id === p.id) {
@@ -220,6 +268,103 @@ export function useGraphSimulation(params: SimulationParams): void {
       }
     }
 
+    // ---------- 영역(섹터) 할당 ----------
+    // 트리를 방사형 부채꼴로 나눠 각 서브트리가 자기 각도 구역만 차지하게 한다.
+    // 깊이는 반지름(중심에서 멀어짐), 형제는 각도로 분리 → 부모-자식 선이 형제 영역을
+    // 가로지르지 않아 엉킴이 크게 준다. 피벗에만 목표 위치를 주고(파일은 스프링으로 따라붙음),
+    // 매 프레임 약한 인력으로 끌어당겨 경직되지 않게 한다.
+    const RING = 145 // 깊이 1단계당 반지름 증가(↓ 할수록 트리가 촘촘)
+    let maxDepth = 0 // 가장 바깥 군집의 깊이(고립 노드를 그 바깥 둘레에 두기 위함)
+    const sectorTarget = new Map<string, { x: number; y: number }>()
+    // 각도 분배용 넓이(최소 1 보장)
+    const spanOf = (id: string): number => Math.max(1, subtreeOf(id))
+    const assignSector = (id: string, a0: number, a1: number, depth: number): void => {
+      if (depth > maxDepth) maxDepth = depth
+      const mid = (a0 + a1) / 2
+      sectorTarget.set(`pivot:${id}`, {
+        x: centerX + Math.cos(mid) * depth * RING,
+        y: centerY + Math.sin(mid) * depth * RING
+      })
+      const kids = (childAll.get(id) ?? []).filter((k) => visiblePivotIds.has(k)).sort()
+      if (kids.length === 0) return
+      const totalSpan = kids.reduce((s, k) => s + spanOf(k), 0) || 1
+      const width = a1 - a0
+      let cur = a0
+      for (const k of kids) {
+        const w = (spanOf(k) / totalSpan) * width
+        assignSector(k, cur, cur + w, depth + 1)
+        cur += w
+      }
+    }
+    // 루트 = 보이는 부모가 없는 피벗(집중 보기에선 활성 피벗이 곧 루트)
+    const visParent = new Set<string>()
+    for (const pl of pivotLinks) {
+      if (visiblePivotIds.has(pl.aId) && visiblePivotIds.has(pl.bId)) visParent.add(pl.bId)
+    }
+    // 내용(파일·자식)이 있는 루트만 구조의 뼈대로 삼는다. 빈 독립 피벗은 고립 노드로 취급
+    // (아래 바깥 둘레로) → 빈 새 피벗이 루트로 끼어들어 구조를 흩뜨리지 않는다.
+    const roots = visible.pivots
+      .map((p) => p.id)
+      .filter((id) => !visParent.has(id) && subtreeOf(id) > 0)
+      .sort()
+    const rootTotalSpan = roots.reduce((s, id) => s + spanOf(id), 0) || 1
+    const rootDepth = roots.length > 1 ? 1 : 0 // 루트 여럿이면 중심을 비우고 1링부터
+    let ra = -Math.PI / 2 // 12시 방향부터 배치
+    for (const id of roots) {
+      const w = (spanOf(id) / rootTotalSpan) * Math.PI * 2
+      assignSector(id, ra, ra + w, rootDepth)
+      ra += w
+    }
+
+    // ---------- 파일 방사형 슬롯 ----------
+    // 각 피벗 주위에 파일을 균등한 각도로 배치하고, 반지름은 파일 수에 맞춰 키운다
+    // (= 가장 바깥 자식까지의 원형 영역). 외부 반발에 밀려 한쪽으로 쏠리지 않고
+    // 사방으로 고르게 퍼지는 방사형 버스트가 된다.
+    const filesByPivot = new Map<string, string[]>()
+    for (const l of links) {
+      if (!visiblePivotIds.has(l.pivotId) || !visibleItemIds.has(l.itemId)) continue
+      const arr = filesByPivot.get(l.pivotId) ?? []
+      arr.push(l.itemId)
+      filesByPivot.set(l.pivotId, arr)
+    }
+    const fileSlot = new Map<string, { pivotIdx: number; angle: number; radius: number }>()
+    for (const [pivotId, fileIds] of filesByPivot) {
+      const pIdx = idx.get(`pivot:${pivotId}`)
+      if (pIdx === undefined) continue
+      fileIds.sort()
+      const count = fileIds.length
+      // 둘레에 파일당 ~22px 확보되도록 반지름 결정(최소 피벗 반지름 + 50)
+      const radius = Math.max(nodes[pIdx].r + 50, (count * 22) / (2 * Math.PI))
+      for (let i = 0; i < count; i++) {
+        const fIdx = idx.get(`item:${fileIds[i]}`)
+        if (fIdx === undefined) continue
+        fileSlot.set(`item:${fileIds[i]}`, {
+          pivotIdx: pIdx,
+          angle: (2 * Math.PI * i) / count,
+          radius
+        })
+      }
+    }
+
+    // ---------- 고립 노드 바깥 둘레 배치 ----------
+    // 섹터(피벗)도 슬롯(파일)도 없는 노드 = 어디에도 연결 안 된 고립 노드(고립 파일·빈 피벗).
+    // 중심으로 끌리면 구조 한가운데로 파고들므로, 구조 바깥 큰 둘레에 고르게 둔다.
+    const orphanTarget = new Map<string, { x: number; y: number }>()
+    const orphanIds = nodes
+      .filter((n) => !sectorTarget.has(n.id) && !fileSlot.has(n.id))
+      .map((n) => n.id)
+      .sort()
+    if (orphanIds.length > 0) {
+      const orphanRadius = maxDepth * RING + 240 // 가장 바깥 군집보다 더 바깥
+      orphanIds.forEach((id, i) => {
+        const ang = (2 * Math.PI * i) / orphanIds.length
+        orphanTarget.set(id, {
+          x: centerX + Math.cos(ang) * orphanRadius,
+          y: centerY + Math.sin(ang) * orphanRadius
+        })
+      })
+    }
+
     nodesRef.current = nodes
 
     focusRef.current = (id: string) => {
@@ -260,18 +405,31 @@ export function useGraphSimulation(params: SimulationParams): void {
       return null
     }
 
-    const REPULSION = 2600
+    const REPULSION = 2500 // 노드 간 반발력(↑ 할수록 넓게 퍼짐)
     const SPRING = 0.04
-    const SPRING_LEN = 90
-    const GRAVITY = 0.012
+    const SPRING_PP = 0.012 // 피벗↔피벗 스프링은 약하게 — 위치는 섹터 인력이 주도
+    const SPRING_LEN_PP = 240 // 피벗 ↔ 피벗(부모-자식) 기본 + 양쪽 반지름
+    const SPRING_LEN_FF = 95 // 파일 ↔ 파일
+    const GRAVITY = 0.009 // 섹터·슬롯 목표가 없는 노드(고립 파일 등)용 중심 인력
+    const SECTOR_PULL = 0.05 // 피벗을 자기 섹터 목표 위치로 끌어당기는 힘
+    const FILE_PULL = 0.06 // 파일을 피벗 주위 방사형 슬롯으로 끌어당기는 힘
     const DAMPING = 0.85
     const MAX_V = 40 // 프레임당 최대 이동량(요동 방지 안전장치)
+
+    // 연결 구조가 바뀌었는지(연결/해제) 감지. 노드 수는 같아도 엣지가 달라지면 재배치가 필요하다.
+    const edgeSig = edges
+      .map((e) => `${nodes[e.a].id}>${nodes[e.b].id}`)
+      .sort()
+      .join('|')
+    const structuralChange = !isFirstBuild && prevEdgeSig !== null && edgeSig !== prevEdgeSig
+    prevEdgeSig = edgeSig
 
     // 재가열(reheat) 세기:
     // - 첫 빌드: 1 (전체 레이아웃)
     // - 새 노드가 생김: 0.3 (부분적으로 자리 잡기)
+    // - 연결/해제로 구조가 바뀜: 0.25 (새 구조에 맞게 다시 펼침)
     // - 위치만 복원되는 변경(이름변경·태그 등): 0.05 (거의 안 움직임)
-    let alpha = isFirstBuild ? 1 : newIndices.length > 0 ? 0.3 : 0.05
+    let alpha = isFirstBuild ? 1 : newIndices.length > 0 ? 0.3 : structuralChange ? 0.25 : 0.05
 
     const BH_THETA2 = BH_THETA * BH_THETA
 
@@ -284,10 +442,14 @@ export function useGraphSimulation(params: SimulationParams): void {
       for (const e of edges) {
         const a = nodes[e.a]
         const b = nodes[e.b]
+        // 피벗-파일 연결은 스프링 대신 방사형 슬롯 인력이 위치를 잡는다(아래) → 여기선 건너뜀
+        if (!e.dir && (a.kind === 'pivot' || b.kind === 'pivot')) continue
         const dx = b.x - a.x
         const dy = b.y - a.y
         const d = Math.sqrt(dx * dx + dy * dy) || 1
-        const f = (d - SPRING_LEN) * SPRING * alpha
+        const restLen = e.dir ? SPRING_LEN_PP + a.r + b.r : SPRING_LEN_FF
+        const k = e.dir ? SPRING_PP : SPRING // 부모-자식은 약하게(섹터가 위치 주도)
+        const f = (d - restLen) * k * alpha
         const fx = (dx / d) * f
         const fy = (dy / d) * f
         a.vx += fx
@@ -301,8 +463,29 @@ export function useGraphSimulation(params: SimulationParams): void {
           n.vy = 0
           continue
         }
-        n.vx += (centerX - n.x) * GRAVITY * alpha
-        n.vy += (centerY - n.y) * GRAVITY * alpha
+        // 피벗 → 섹터 목표 / 파일 → 자기 피벗 주위 방사형 슬롯 / 그 외(고립) → 중심.
+        const tgt = sectorTarget.get(n.id)
+        const slot = tgt ? undefined : fileSlot.get(n.id)
+        if (tgt) {
+          n.vx += (tgt.x - n.x) * SECTOR_PULL * alpha
+          n.vy += (tgt.y - n.y) * SECTOR_PULL * alpha
+        } else if (slot) {
+          const p = nodes[slot.pivotIdx]
+          const tx = p.x + Math.cos(slot.angle) * slot.radius
+          const ty = p.y + Math.sin(slot.angle) * slot.radius
+          n.vx += (tx - n.x) * FILE_PULL * alpha
+          n.vy += (ty - n.y) * FILE_PULL * alpha
+        } else {
+          // 고립 노드는 바깥 둘레로(중심으로 파고들지 않게). 목표가 없으면 약한 중심 인력.
+          const ot = orphanTarget.get(n.id)
+          if (ot) {
+            n.vx += (ot.x - n.x) * GRAVITY * 2 * alpha
+            n.vy += (ot.y - n.y) * GRAVITY * 2 * alpha
+          } else {
+            n.vx += (centerX - n.x) * GRAVITY * alpha
+            n.vy += (centerY - n.y) * GRAVITY * alpha
+          }
+        }
         n.vx *= DAMPING
         n.vy *= DAMPING
         // 프레임당 이동량 제한(어떤 경우에도 휙 날지 않게)
