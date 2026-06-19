@@ -1,6 +1,6 @@
 {
   "name": "my-db-system",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "나만의 데이터 저장 시스템 - 파일/프로젝트/갤러리 관리",
   "main": "out/main/index.js",
   "author": "devbin",
