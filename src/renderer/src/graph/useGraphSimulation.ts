@@ -4,21 +4,16 @@ import { applyRepulsion, BH_THETA, buildQuadTree } from './quadtree'
 import { ringColor } from './colors'
 import type { GEdge, GNode, GraphPalette, LinkSource, MenuMode } from './types'
 
-// 노드 위치 캐시(id → 좌표/속도). 모듈 레벨이라 그래프뷰가 언마운트/재마운트(목록 ↔ 그래프
-// 전환)돼도 유지된다. → 그래프로 돌아왔을 때 이전 배치를 그대로 복원해 다시 펼쳐지지 않는다.
-const positionCache = new Map<string, { x: number; y: number; vx: number; vy: number }>()
-
-// 중력 중심(월드 좌표)도 위치 캐시와 함께 유지한다. effect가 재실행될 때마다 새로 계산하면,
-// 리사이즈 이후 캐시된 노드 좌표와 중심이 어긋나 노드 전체가 한 방향으로 쏠린다.
-let gravityCenter: { x: number; y: number } | null = null
-
-// 뷰 변환(줌/패닝)도 유지한다. 그래프뷰 재마운트(목록 ↔ 그래프 전환) 시 0으로 초기화되면
-// 노드 군집이 한쪽으로 치우쳐 보이므로, 떠날 때의 뷰를 그대로 복원한다.
-let viewState: { scale: number; offsetX: number; offsetY: number } | null = null
-
-// 직전 빌드의 엣지 구성(연결 변화 감지용). 노드 수가 같아도 연결/해제로 엣지가 달라지면
-// 레이아웃을 살짝 재가열해 새 구조에 맞게 다시 펼친다(예: 새 피벗에 파일을 옮겼을 때).
-let prevEdgeSig: string | null = null
+// 위치/뷰 캐시는 cacheKey별로 분리한다(예: DB 그래프 'main' vs GitHub repo 그래프 'repo').
+// 모듈 레벨이라 그래프뷰가 언마운트/재마운트(탭 전환)돼도 유지된다. → 돌아왔을 때 이전 배치를
+// 그대로 복원해 다시 펼쳐지지 않는다. 두 그래프가 같은 화면 좌표라도 서로 섞이지 않는다.
+const positionCaches = new Map<string, Map<string, { x: number; y: number; vx: number; vy: number }>>()
+// 중력 중심(월드 좌표). effect가 재실행될 때마다 새로 계산하면 캐시된 좌표와 어긋나 쏠린다.
+const gravityCenters = new Map<string, { x: number; y: number }>()
+// 뷰 변환(줌/패닝). 재마운트 시 0으로 초기화되면 군집이 치우쳐 보이므로 떠날 때 뷰를 복원한다.
+const viewStates = new Map<string, { scale: number; offsetX: number; offsetY: number }>()
+// 직전 빌드의 엣지 구성(연결 변화 감지용). 연결/해제로 엣지가 달라지면 살짝 재가열한다.
+const prevEdgeSigs = new Map<string, string>()
 
 interface NodeClickArg {
   refId: string
@@ -32,9 +27,14 @@ interface SimulationParams {
   links: Link[]
   itemLinks: ItemLink[]
   pivotLinks: ItemLink[]
+  cacheKey: string // 위치/뷰 캐시 분리 키('main' | 'repo' 등)
+  // 루트로 인정할 최소 서브트리 크기. 기본 1(내용 없는 빈 피벗은 루트가 아니라 바깥 둘레로).
+  // repo 그래프는 0을 줘서 미펼침(빈) repo도 항상 루트로 둔다.
+  rootMinSubtree?: number
   pivots: Pivot[]
   items: LibraryItem[]
-  palette: GraphPalette
+  // 팔레트는 ref로 받아 draw()가 매 프레임 최신 색을 읽는다(테마 변경이 리빌딩 없이 즉시 반영).
+  paletteRef: { current: GraphPalette }
   spawnRef: { current: { id: string; x: number; y: number } | null }
   nodesRef: { current: GNode[] }
   focusRef: { current: ((id: string) => void) | null }
@@ -59,9 +59,11 @@ export function useGraphSimulation(params: SimulationParams): void {
     links,
     itemLinks,
     pivotLinks,
+    cacheKey,
+    rootMinSubtree = 1,
     pivots,
     items,
-    palette,
+    paletteRef,
     spawnRef,
     nodesRef,
     focusRef,
@@ -72,26 +74,39 @@ export function useGraphSimulation(params: SimulationParams): void {
     setMenu,
     setMenuMode,
     setRenameText,
-    closeMenu,
-    onOpenItem,
-    onSelectPivot
+    closeMenu
   } = params
 
   useEffect(() => {
-    const canvas = canvasRef.current!
-    const ctx = canvas.getContext('2d')!
-    const parent = canvas.parentElement!
+    // 캔버스가 아직 없으면(예: 토큰 입력 화면처럼 그래프 미표시 상태) 아무것도 하지 않는다.
+    // 데이터/표시 상태가 바뀌어 캔버스가 렌더되면 effect가 다시 실행돼 초기화된다.
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext('2d')
+    const parent = canvas?.parentElement
+    if (!canvas || !ctx || !parent) return
+
+    // cacheKey별 캐시 확보(없으면 생성)
+    let positionCache = positionCaches.get(cacheKey)
+    if (!positionCache) {
+      positionCache = new Map()
+      positionCaches.set(cacheKey, positionCache)
+    }
 
     let width = parent.clientWidth
     let height = parent.clientHeight
 
     // 중력 중심: 노드를 끌어당기는 월드 좌표 기준점. 최초 1회만 정하고 이후엔 유지한다
     // (재실행/리사이즈로 바뀌면 캐시된 노드 좌표와 어긋나 쏠림이 생기므로).
-    if (!gravityCenter) gravityCenter = { x: width / 2, y: height / 2 }
+    let gravityCenter = gravityCenters.get(cacheKey)
+    if (!gravityCenter) {
+      gravityCenter = { x: width / 2, y: height / 2 }
+      gravityCenters.set(cacheKey, gravityCenter)
+    }
     const centerX = gravityCenter.x
     const centerY = gravityCenter.y
 
     // 뷰 변환 상태. 이전 뷰(줌/패닝)가 있으면 복원하고, 없으면 중력 중심을 화면 중앙에 맞춘다.
+    const viewState = viewStates.get(cacheKey)
     let scale = viewState ? viewState.scale : 1
     let offsetX = viewState ? viewState.offsetX : width / 2 - centerX
     let offsetY = viewState ? viewState.offsetY : height / 2 - centerY
@@ -242,57 +257,47 @@ export function useGraphSimulation(params: SimulationParams): void {
       if (a !== undefined && b !== undefined) edges.push({ a, b, dir: true })
     }
 
-    // 새 노드(첫 빌드 제외)는 연결된 기존 노드들의 평균 위치 근처에 등장시켜
-    // 멀리서 날아오지 않게 한다.
-    if (!isFirstBuild && newIndices.length > 0) {
-      const isNew = new Set(newIndices)
-      for (const ni of newIndices) {
-        let sx = 0
-        let sy = 0
-        let cnt = 0
-        for (const e of edges) {
-          if (e.a === ni && !isNew.has(e.b)) {
-            sx += nodes[e.b].x
-            sy += nodes[e.b].y
-            cnt++
-          } else if (e.b === ni && !isNew.has(e.a)) {
-            sx += nodes[e.a].x
-            sy += nodes[e.a].y
-            cnt++
-          }
-        }
-        if (cnt > 0) {
-          nodes[ni].x = sx / cnt + (Math.random() - 0.5) * 40
-          nodes[ni].y = sy / cnt + (Math.random() - 0.5) * 40
-        }
-      }
-    }
+    // (새 노드 초기 위치는 아래 섹터/슬롯 목표가 정해진 뒤 그 자리에서 시작시킨다 → 리빌딩이 조용함)
 
     // ---------- 영역(섹터) 할당 ----------
     // 트리를 방사형 부채꼴로 나눠 각 서브트리가 자기 각도 구역만 차지하게 한다.
     // 깊이는 반지름(중심에서 멀어짐), 형제는 각도로 분리 → 부모-자식 선이 형제 영역을
     // 가로지르지 않아 엉킴이 크게 준다. 피벗에만 목표 위치를 주고(파일은 스프링으로 따라붙음),
     // 매 프레임 약한 인력으로 끌어당겨 경직되지 않게 한다.
-    const RING = 145 // 깊이 1단계당 반지름 증가(↓ 할수록 트리가 촘촘)
-    let maxDepth = 0 // 가장 바깥 군집의 깊이(고립 노드를 그 바깥 둘레에 두기 위함)
+    const RING = 145 // 깊이 1단계당 최소 반지름 증가(↓ 할수록 트리가 촘촘)
+    let maxRadius = 0 // 가장 바깥 군집의 반지름(고립 노드를 그 바깥 둘레에 두기 위함)
     const sectorTarget = new Map<string, { x: number; y: number }>()
-    // 각도 분배용 넓이(최소 1 보장)
     const spanOf = (id: string): number => Math.max(1, subtreeOf(id))
-    const assignSector = (id: string, a0: number, a1: number, depth: number): void => {
-      if (depth > maxDepth) maxDepth = depth
+    // 한 노드가 링에서 차지해야 할 대략적 호 길이(px). 자식이 많아도 안 겹치게 반지름 산정에 쓴다.
+    const arcOf = (id: string): number => 64 + Math.sqrt(spanOf(id)) * 30
+    // 자식들을 부채꼴 [a0,a1]에 배치할 링 반지름: 필요한 호 합(arc)이 (반지름×각폭)에 들어가도록 키운다.
+    const childRingRadius = (a0: number, a1: number, base: number, arc: number): number =>
+      Math.max(base, arc / Math.max(a1 - a0, 0.001))
+    // radius = 클러스터 중심(cx,cy)에서의 거리. 자식은 부모 각도 구역을 자기 호(arcOf) 비례로
+    // 나눠 가지며, 자식이 많으면 링 반지름이 커져 서로(그리고 선이) 겹치지 않는다.
+    const assignSector = (
+      id: string,
+      a0: number,
+      a1: number,
+      radius: number,
+      cx: number,
+      cy: number
+    ): void => {
       const mid = (a0 + a1) / 2
-      sectorTarget.set(`pivot:${id}`, {
-        x: centerX + Math.cos(mid) * depth * RING,
-        y: centerY + Math.sin(mid) * depth * RING
-      })
+      const tx = cx + Math.cos(mid) * radius
+      const ty = cy + Math.sin(mid) * radius
+      sectorTarget.set(`pivot:${id}`, { x: tx, y: ty })
+      const d = Math.hypot(tx - centerX, ty - centerY)
+      if (d > maxRadius) maxRadius = d
       const kids = (childAll.get(id) ?? []).filter((k) => visiblePivotIds.has(k)).sort()
       if (kids.length === 0) return
-      const totalSpan = kids.reduce((s, k) => s + spanOf(k), 0) || 1
+      const totalArc = kids.reduce((s, k) => s + arcOf(k), 0) || 1
+      const childRadius = childRingRadius(a0, a1, radius + RING, totalArc)
       const width = a1 - a0
       let cur = a0
       for (const k of kids) {
-        const w = (spanOf(k) / totalSpan) * width
-        assignSector(k, cur, cur + w, depth + 1)
+        const w = (arcOf(k) / totalArc) * width
+        assignSector(k, cur, cur + w, childRadius, cx, cy)
         cur += w
       }
     }
@@ -301,19 +306,42 @@ export function useGraphSimulation(params: SimulationParams): void {
     for (const pl of pivotLinks) {
       if (visiblePivotIds.has(pl.aId) && visiblePivotIds.has(pl.bId)) visParent.add(pl.bId)
     }
-    // 내용(파일·자식)이 있는 루트만 구조의 뼈대로 삼는다. 빈 독립 피벗은 고립 노드로 취급
-    // (아래 바깥 둘레로) → 빈 새 피벗이 루트로 끼어들어 구조를 흩뜨리지 않는다.
+    // 내용(파일·자식)이 있는 루트만 구조의 뼈대로 삼는다. 빈 독립 피벗은 고립 노드로 취급.
     const roots = visible.pivots
       .map((p) => p.id)
-      .filter((id) => !visParent.has(id) && subtreeOf(id) > 0)
+      .filter((id) => !visParent.has(id) && subtreeOf(id) >= rootMinSubtree)
       .sort()
-    const rootTotalSpan = roots.reduce((s, id) => s + spanOf(id), 0) || 1
-    const rootDepth = roots.length > 1 ? 1 : 0 // 루트 여럿이면 중심을 비우고 1링부터
-    let ra = -Math.PI / 2 // 12시 방향부터 배치
-    for (const id of roots) {
-      const w = (spanOf(id) / rootTotalSpan) * Math.PI * 2
-      assignSector(id, ra, ra + w, rootDepth)
-      ra += w
+    const FULL = Math.PI * 2
+    const A0 = -Math.PI / 2
+    let centralExtent = 0 // 중앙 군집의 바깥 반지름(고립 노드를 그 바로 밖에 두기 위함)
+    if (roots.length === 1) {
+      // 단일 트리: 전역 중심 둘레에 360°로 펼친다.
+      assignSector(roots[0], A0, A0 + FULL, 0, centerX, centerY)
+      centralExtent = maxRadius
+    } else if (roots.length > 1) {
+      // 여러 트리(예: 로컬 그래프 + GitHub 계정): 가장 큰 트리를 중앙에 360°로 펼치고,
+      // 나머지는 그 군집의 "실제 바깥 반지름" 바로 밖 둘레에 바짝 붙여 배치한다.
+      // → 어느 트리도 한쪽으로 쏠리지 않고, 군집끼리 멀리 떨어지지도 않는다.
+      const clusterRadius = (id: string): number =>
+        RING * (heightOf(id) + 1) + Math.sqrt(spanOf(id)) * 22
+      const sorted = [...roots].sort((a, b) => clusterRadius(b) - clusterRadius(a))
+      assignSector(sorted[0], A0, A0 + FULL, 0, centerX, centerY) // 가장 큰 트리 = 중앙
+      const bigExtent = maxRadius // 방금 배치한 중앙 군집의 실제 바깥 반지름
+      centralExtent = bigExtent
+      const rest = sorted.slice(1)
+      const maxSatR = rest.reduce((m, id) => Math.max(m, clusterRadius(id)), 0)
+      const restArc = rest.reduce((s, id) => s + 2 * clusterRadius(id), 0) || 1
+      // 위성 링: 중앙 군집 바로 바깥(+60). 위성이 많으면 둘레가 모자라지 않게 키운다.
+      const satRingR = Math.max(bigExtent + maxSatR + 60, restArc / FULL)
+      let ca = A0
+      for (const id of rest) {
+        const slice = ((2 * clusterRadius(id)) / restArc) * FULL
+        const mid = ca + slice / 2
+        const cx = centerX + Math.cos(mid) * satRingR
+        const cy = centerY + Math.sin(mid) * satRingR
+        assignSector(id, A0, A0 + FULL, 0, cx, cy)
+        ca += slice
+      }
     }
 
     // ---------- 파일 방사형 슬롯 ----------
@@ -355,7 +383,7 @@ export function useGraphSimulation(params: SimulationParams): void {
       .map((n) => n.id)
       .sort()
     if (orphanIds.length > 0) {
-      const orphanRadius = maxDepth * RING + 240 // 가장 바깥 군집보다 더 바깥
+      const orphanRadius = centralExtent + 140 // 중앙 군집 바로 바깥(전체 최대치가 아님)
       orphanIds.forEach((id, i) => {
         const ang = (2 * Math.PI * i) / orphanIds.length
         orphanTarget.set(id, {
@@ -365,11 +393,37 @@ export function useGraphSimulation(params: SimulationParams): void {
       })
     }
 
+    // 새 노드는 무작위 자리가 아니라 자기 목표 위치(섹터/슬롯/고립 링)에서 시작한다.
+    // → 리빌딩 때 멀리서 날아오지 않고 제자리에서 살짝 정착만 해 조용하다.
+    for (const ni of newIndices) {
+      const n = nodes[ni]
+      if (n.fixed) continue // 방금 생성해 우클릭 자리에 고정한 피벗은 그대로
+      const st = sectorTarget.get(n.id)
+      if (st) {
+        n.x = st.x
+        n.y = st.y
+        continue
+      }
+      const slot = fileSlot.get(n.id)
+      if (slot) {
+        const p = nodes[slot.pivotIdx]
+        n.x = p.x + Math.cos(slot.angle) * slot.radius
+        n.y = p.y + Math.sin(slot.angle) * slot.radius
+        continue
+      }
+      const ot = orphanTarget.get(n.id)
+      if (ot) {
+        n.x = ot.x
+        n.y = ot.y
+      }
+    }
+
     nodesRef.current = nodes
 
     focusRef.current = (id: string) => {
-      const n = nodes.find((nd) => nd.id === id)
-      if (!n) return
+      const fi = idx.get(id)
+      if (fi === undefined) return
+      const n = nodes[fi]
       targetScale = 1.8
       targetOffsetX = width / 2 - n.x * targetScale
       targetOffsetY = height / 2 - n.y * targetScale
@@ -388,6 +442,7 @@ export function useGraphSimulation(params: SimulationParams): void {
     let dim = 0 // 0=강조 없음, 1=완전 강조 (부드럽게 보간)
     let hlNodes: Set<GNode> | null = null
     let hlEdges: Set<GEdge> | null = null
+    let hlFor: GNode | null = null // hlNodes/hlEdges가 어느 hoverNode 기준인지(재계산 캐시)
 
     const toWorld = (sx: number, sy: number) => ({
       x: (sx - offsetX) / scale,
@@ -421,15 +476,16 @@ export function useGraphSimulation(params: SimulationParams): void {
       .map((e) => `${nodes[e.a].id}>${nodes[e.b].id}`)
       .sort()
       .join('|')
+    const prevEdgeSig = prevEdgeSigs.get(cacheKey) ?? null
     const structuralChange = !isFirstBuild && prevEdgeSig !== null && edgeSig !== prevEdgeSig
-    prevEdgeSig = edgeSig
+    prevEdgeSigs.set(cacheKey, edgeSig)
 
-    // 재가열(reheat) 세기:
-    // - 첫 빌드: 1 (전체 레이아웃)
-    // - 새 노드가 생김: 0.3 (부분적으로 자리 잡기)
-    // - 연결/해제로 구조가 바뀜: 0.25 (새 구조에 맞게 다시 펼침)
-    // - 위치만 복원되는 변경(이름변경·태그 등): 0.05 (거의 안 움직임)
-    let alpha = isFirstBuild ? 1 : newIndices.length > 0 ? 0.3 : structuralChange ? 0.25 : 0.05
+    // 재가열(reheat) 세기. 새 노드는 이미 목표 위치에서 시작하므로 살짝만 데우면 충분하다.
+    // - 첫 빌드: 0.5 (목표 배치에서 가볍게 정착)
+    // - 새 노드가 생김: 0.18 (제자리에서 미세 조정)
+    // - 연결/해제로 구조가 바뀜: 0.12
+    // - 위치만 복원되는 변경(이름변경·태그 등): 0.04 (거의 안 움직임)
+    let alpha = isFirstBuild ? 0.5 : newIndices.length > 0 ? 0.18 : structuralChange ? 0.12 : 0.04
 
     const BH_THETA2 = BH_THETA * BH_THETA
 
@@ -504,15 +560,17 @@ export function useGraphSimulation(params: SimulationParams): void {
       ctx.save()
       ctx.translate(offsetX, offsetY)
       ctx.scale(scale, scale)
+      const pal = paletteRef.current // 매 프레임 최신 팔레트(테마 즉시 반영)
 
       // 호버한 피벗의 하위 전체(자식·손자… 서브트리)를 강조 대상으로 모은다.
       // 엣지는 a=부모/원본, b=자식/대상으로 저장되므로, 자식 방향(e.a==현재)으로만 내려간다.
+      // 결과는 hoverNode가 바뀔 때만 재계산한다(매 프레임 BFS 방지).
       const dimTarget = hoverNode && hoverNode.kind === 'pivot' ? 1 : 0
-      if (hoverNode && hoverNode.kind === 'pivot') {
-        const start = nodes.indexOf(hoverNode)
+      if (hoverNode && hoverNode.kind === 'pivot' && hoverNode !== hlFor) {
+        const start = idx.get(hoverNode.id)
         // 1) 하위 피벗을 BFS로 모두 수집(피벗→피벗 방향만 따라감)
-        const pivotSet = new Set<number>([start])
-        const queue = [start]
+        const pivotSet = new Set<number>(start === undefined ? [] : [start])
+        const queue = start === undefined ? [] : [start]
         while (queue.length > 0) {
           const cur = queue.shift() as number
           for (const e of edges) {
@@ -534,16 +592,18 @@ export function useGraphSimulation(params: SimulationParams): void {
         }
         hlNodes = hn
         hlEdges = he
+        hlFor = hoverNode
       }
       dim += (dimTarget - dim) * 0.2
       if (dim < 0.002) {
         dim = 0
         hlNodes = null
         hlEdges = null
+        hlFor = null
       }
       const dimAlpha = 1 - 0.82 * dim
 
-      ctx.strokeStyle = palette.edge
+      ctx.strokeStyle = pal.edge
       ctx.lineWidth = 1.6 / scale
       for (const e of edges) {
         ctx.globalAlpha = !hlEdges || hlEdges.has(e) ? 1 : dimAlpha
@@ -555,7 +615,7 @@ export function useGraphSimulation(params: SimulationParams): void {
       ctx.globalAlpha = 1
 
       for (const n of nodes) {
-        const color = n.kind === 'pivot' ? palette.pivot : palette.file
+        const color = n.kind === 'pivot' ? pal.pivot : pal.file
         const isHover = n === hoverNode
         const isFocus = n.id === focusId
         // 강조 중이고 자식 집합에 없으면 흐리게
@@ -565,7 +625,7 @@ export function useGraphSimulation(params: SimulationParams): void {
         const target = isHover || isFocus ? 1 : 0
         n.h += (target - n.h) * 0.16
         if (Math.abs(target - n.h) < 0.004) n.h = target
-        const ring = ringColor(n, palette)
+        const ring = ringColor(n, pal)
         const drawR = n.r * (1 + 0.15 * n.h) // 최대 1.15배만 커진다
 
         if (isFocus) {
@@ -598,7 +658,7 @@ export function useGraphSimulation(params: SimulationParams): void {
         ctx.globalAlpha = na
         ctx.fill()
         if (n.kind === 'pivot') {
-          ctx.strokeStyle = palette.labelHover
+          ctx.strokeStyle = pal.labelHover
           ctx.globalAlpha = 0.5 * na
           ctx.lineWidth = 2 / scale
           ctx.stroke()
@@ -622,7 +682,7 @@ export function useGraphSimulation(params: SimulationParams): void {
           const fontSize = (n.kind === 'pivot' ? 13 : 10) / scale
           ctx.font = `${n.kind === 'pivot' ? '600 ' : ''}${fontSize}px 'Segoe UI', 'Malgun Gothic', sans-serif`
           ctx.globalAlpha = labelAlpha * na
-          ctx.fillStyle = n.h > 0.5 ? palette.labelHover : palette.label
+          ctx.fillStyle = n.h > 0.5 ? pal.labelHover : pal.label
           ctx.textAlign = 'center'
           ctx.fillText(n.label, n.x, n.y + drawR + fontSize + 4 / scale)
           ctx.globalAlpha = 1
@@ -630,7 +690,7 @@ export function useGraphSimulation(params: SimulationParams): void {
       }
 
       // 부모→자식 방향 표시: 부모 피벗 테두리의 자식 쪽에 흰색 점을 찍는다.
-      ctx.fillStyle = palette.labelHover
+      ctx.fillStyle = pal.labelHover
       for (const e of edges) {
         if (!e.dir) continue
         const p = nodes[e.a] // 부모
@@ -651,10 +711,11 @@ export function useGraphSimulation(params: SimulationParams): void {
       const link = linkingRef.current
       if (link) {
         const srcId = (link.kind === 'pivot' ? 'pivot:' : 'item:') + link.refId
-        const src = nodes.find((nd) => nd.id === srcId)
+        const si = idx.get(srcId)
+        const src = si === undefined ? undefined : nodes[si]
         if (src) {
           const m = toWorld(lastX, lastY)
-          ctx.strokeStyle = palette.pivot
+          ctx.strokeStyle = pal.pivot
           ctx.globalAlpha = 0.85
           ctx.lineWidth = 2 / scale
           ctx.setLineDash([6 / scale, 5 / scale])
@@ -665,7 +726,7 @@ export function useGraphSimulation(params: SimulationParams): void {
           ctx.setLineDash([])
           ctx.beginPath()
           ctx.arc(m.x, m.y, 3.5 / scale, 0, Math.PI * 2)
-          ctx.fillStyle = palette.pivot
+          ctx.fillStyle = pal.pivot
           ctx.fill()
           ctx.globalAlpha = 1
         }
@@ -679,7 +740,8 @@ export function useGraphSimulation(params: SimulationParams): void {
       step()
       if (tweening) {
         if (focusId) {
-          const n = nodes.find((nd) => nd.id === focusId)
+          const fi = idx.get(focusId)
+          const n = fi === undefined ? undefined : nodes[fi]
           if (n) {
             targetOffsetX = width / 2 - n.x * targetScale
             targetOffsetY = height / 2 - n.y * targetScale
@@ -798,7 +860,7 @@ export function useGraphSimulation(params: SimulationParams): void {
       // 현재 보이는 노드 위치를 저장(집중 보기로 숨겨진 노드의 좌표는 유지해야 하므로
       // 통째로 교체하지 않고 갱신만 한다). 실제로 삭제된 노드만 정리한다.
       for (const n of nodes) positionCache.set(n.id, { x: n.x, y: n.y, vx: n.vx, vy: n.vy })
-      viewState = { scale, offsetX, offsetY }
+      viewStates.set(cacheKey, { scale, offsetX, offsetY })
       const liveIds = new Set<string>([
         ...items.map((i) => `item:${i.id}`),
         ...pivots.map((p) => `pivot:${p.id}`)
@@ -816,5 +878,5 @@ export function useGraphSimulation(params: SimulationParams): void {
       canvas.removeEventListener('wheel', onWheel)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, links, itemLinks, pivotLinks, pivots, items, onOpenItem, onSelectPivot])
+  }, [visible, links, itemLinks, pivotLinks, cacheKey, rootMinSubtree, pivots, items])
 }

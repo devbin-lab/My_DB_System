@@ -19,7 +19,6 @@ const api = {
   chooseStorageDir: () => ipcRenderer.invoke('storage:choose'),
   setStorageDir: (dir: string) => ipcRenderer.invoke('storage:set', dir),
   exportBackup: () => ipcRenderer.invoke('backup:export'),
-  openBackup: () => ipcRenderer.invoke('backup:open'),
   isOnboarded: () => ipcRenderer.invoke('app:isOnboarded'),
   completeOnboarding: () => ipcRenderer.invoke('app:completeOnboarding'),
   getSettings: () => ipcRenderer.invoke('settings:getAll'),
@@ -61,6 +60,14 @@ const api = {
     ipcRenderer.invoke('trash:restore', kind, id),
   purgeTrash: (kind: 'item' | 'pivot', id: string) => ipcRenderer.invoke('trash:purge', kind, id),
   emptyTrash: () => ipcRenderer.invoke('trash:empty'),
+  // GitHub 계정 저장소 그래프(읽기 전용)
+  githubSetToken: (token: string) => ipcRenderer.invoke('github:setToken', token),
+  githubHasToken: () => ipcRenderer.invoke('github:hasToken'),
+  githubClearToken: () => ipcRenderer.invoke('github:clearToken'),
+  githubRepos: () => ipcRenderer.invoke('github:repos'),
+  githubTree: (owner: string, repo: string, branch: string) =>
+    ipcRenderer.invoke('github:tree', owner, repo, branch),
+  openUrl: (url: string) => ipcRenderer.invoke('app:openUrl', url),
   // 드래그&드롭된 File 객체에서 실제 경로 추출
   getPathForFile: (file: File) => webUtils.getPathForFile(file)
 }

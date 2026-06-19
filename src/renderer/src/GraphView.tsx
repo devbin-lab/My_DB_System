@@ -86,6 +86,9 @@ export default function GraphView(props: Props) {
   const nodeClickRef = useRef<
     (n: { refId: string; kind: 'pivot' | 'item'; label: string }) => void
   >(() => {})
+  // 팔레트는 ref로 시뮬레이션에 전달 → 테마 변경 시 리빌딩 없이 즉시 색 반영
+  const paletteRef = useRef(palette)
+  paletteRef.current = palette
 
   // 어떤 노드를 그릴지 결정.
   // 집중 보기면: 활성 피벗 + pivotLinks(부모→자식)를 따라 내려간 모든 하위 피벗(자식·손자…)
@@ -335,9 +338,10 @@ export default function GraphView(props: Props) {
     links,
     itemLinks,
     pivotLinks,
+    cacheKey: 'main',
     pivots,
     items,
-    palette,
+    paletteRef,
     spawnRef,
     nodesRef,
     focusRef,

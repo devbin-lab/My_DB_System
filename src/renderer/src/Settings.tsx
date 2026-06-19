@@ -109,6 +109,42 @@ function UpdateSection() {
   )
 }
 
+// GitHub 연결 상태/해제. (Git 뷰어 화면에서 실수로 누르지 않도록 설정에 둔다)
+function GitHubSection() {
+  const t = useT()
+  const [connected, setConnected] = useState<boolean | null>(null)
+  useEffect(() => {
+    window.api.githubHasToken().then(setConnected)
+  }, [])
+  const disconnect = async (): Promise<void> => {
+    await window.api.githubClearToken()
+    setConnected(false)
+  }
+  return (
+    <section className="settings-group">
+      <h3>{t('settings.github.title')}</h3>
+      <p className="settings-desc">{t('settings.github.desc')}</p>
+      <div className="setting-row">
+        <div className="setting-label">
+          {t('settings.github.status')}
+          <small>
+            {connected == null
+              ? t('common.loading')
+              : connected
+                ? t('settings.github.connected')
+                : t('settings.github.notConnected')}
+          </small>
+        </div>
+        <div className="setting-control">
+          <button className="btn-ghost" disabled={!connected} onClick={disconnect}>
+            {t('settings.github.disconnect')}
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function SettingsModal({
   settings,
   storageDir,
@@ -116,7 +152,6 @@ export default function SettingsModal({
   onChangeStorage,
   onOpenStorage,
   onExportBackup,
-  onImportBackup,
   onClose
 }: {
   settings: Settings
@@ -125,7 +160,6 @@ export default function SettingsModal({
   onChangeStorage: () => void
   onOpenStorage: () => void
   onExportBackup: () => void
-  onImportBackup: () => void
   onClose: () => void
 }) {
   const t = useT()
@@ -215,9 +249,27 @@ export default function SettingsModal({
               <button className="btn-ghost" onClick={onExportBackup}>
                 {t('settings.backup.export')}
               </button>
-              <button className="btn-ghost" onClick={onImportBackup}>
-                {t('settings.backup.import')}
-              </button>
+            </div>
+          </section>
+
+          <section className="settings-group">
+            <h3>{t('settings.combine.title')}</h3>
+            <div className="setting-row">
+              <div className="setting-label">
+                {t('settings.combine.integrated')}
+                <small>{t('settings.combine.desc')}</small>
+              </div>
+              <div className="setting-control">
+                <button
+                  className={`toggle ${settings.combineGraphs ? 'on' : ''}`}
+                  role="switch"
+                  aria-checked={settings.combineGraphs}
+                  title={t('settings.combine.title')}
+                  onClick={() => onChange('combineGraphs', !settings.combineGraphs)}
+                >
+                  <span className="toggle-knob" />
+                </button>
+              </div>
             </div>
           </section>
 
@@ -241,6 +293,8 @@ export default function SettingsModal({
               </div>
             </div>
           </section>
+
+          <GitHubSection />
 
           <UpdateSection />
         </div>

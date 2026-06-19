@@ -3,11 +3,7 @@ import type { LibraryItem, Pivot } from './types'
 import { useT } from './i18n'
 import { IconX } from './Icons'
 import { ConfirmDialog } from './graph/overlays'
-
-function extLabel(item: LibraryItem): string {
-  const e = item.ext.replace('.', '').toUpperCase()
-  return e.length > 4 ? e.slice(0, 4) : e || 'FILE'
-}
+import { extLabel } from './util/format'
 
 export default function TrashModal({
   onClose,

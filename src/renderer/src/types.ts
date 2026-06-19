@@ -21,6 +21,7 @@ export interface Settings {
   theme: ThemeId
   accent: AccentId
   language: Language
+  combineGraphs: boolean // 그래프 뷰 + GitHub 뷰 통합 표시 여부
 }
 
 export interface Pivot {
@@ -38,9 +39,6 @@ export interface ItemLink {
   aId: string
   bId: string
 }
-
-// 피벗↔피벗 연결도 같은 형태(aId/bId)
-export type PivotLink = ItemLink
 
 export type UpdateState =
   | 'idle'
@@ -60,6 +58,30 @@ export interface UpdateStatus {
   error?: string
 }
 
+// ----- GitHub 계정 저장소 그래프(읽기 전용) -----
+export interface GitHubRepo {
+  owner: string
+  name: string
+  fullName: string
+  defaultBranch: string
+  private: boolean
+  fork: boolean
+  description: string | null
+  language: string | null
+  htmlUrl: string
+  updatedAt: string
+}
+
+export interface GitHubTreeEntry {
+  path: string
+  type: 'blob' | 'tree'
+  size?: number
+}
+
+export type GitHubReposResult = { repos: GitHubRepo[]; login: string } | { error: string }
+export type GitHubTreeResult = { tree: GitHubTreeEntry[] } | { error: string }
+export type GitHubTokenResult = { ok: boolean; login?: string; error?: string }
+
 export interface Api {
   list: () => Promise<LibraryItem[]>
   getVersion: () => Promise<string>
@@ -73,11 +95,10 @@ export interface Api {
   chooseStorageDir: () => Promise<string | null>
   setStorageDir: (dir: string) => Promise<string>
   exportBackup: () => Promise<string | null>
-  openBackup: () => Promise<string>
   isOnboarded: () => Promise<boolean>
   completeOnboarding: () => Promise<boolean>
   getSettings: () => Promise<Settings>
-  setSetting: (key: string, value: unknown) => Promise<Settings>
+  setSetting: (key: keyof Settings, value: unknown) => Promise<Settings>
   importDialog: (pivotId?: string | null) => Promise<LibraryItem[]>
   importPaths: (paths: string[], pivotId?: string | null) => Promise<LibraryItem[]>
   rename: (id: string, newName: string) => Promise<LibraryItem | null>
@@ -105,6 +126,12 @@ export interface Api {
   restoreTrash: (kind: 'item' | 'pivot', id: string) => Promise<void>
   purgeTrash: (kind: 'item' | 'pivot', id: string) => Promise<void>
   emptyTrash: () => Promise<void>
+  githubSetToken: (token: string) => Promise<GitHubTokenResult>
+  githubHasToken: () => Promise<boolean>
+  githubClearToken: () => Promise<boolean>
+  githubRepos: () => Promise<GitHubReposResult>
+  githubTree: (owner: string, repo: string, branch: string) => Promise<GitHubTreeResult>
+  openUrl: (url: string) => Promise<void>
   getPathForFile: (file: File) => string
 }
 

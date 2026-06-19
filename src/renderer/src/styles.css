@@ -1998,3 +1998,317 @@ button {
   background: var(--accent);
   transition: width 0.2s ease-out;
 }
+
+/* ---------- Git 뷰어 ---------- */
+.git-view {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.git-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg);
+}
+
+.git-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-elev);
+}
+
+.git-repo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.git-repo b {
+  color: var(--text);
+  white-space: nowrap;
+}
+.git-branch {
+  padding: 1px 8px;
+  border: 1px solid var(--accent);
+  color: var(--accent-hover);
+  border-radius: 10px;
+  font-size: 11px;
+}
+.git-count {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.git-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.git-open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+.git-open-btn:hover {
+  background: var(--bg-hover);
+}
+
+.git-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.git-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+
+.git-canvas {
+  position: relative;
+}
+
+.git-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.git-row {
+  position: absolute;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.git-row:hover {
+  background: var(--bg-hover);
+}
+.git-row.sel {
+  background: var(--accent-soft);
+}
+
+.git-msg {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  font-size: 13px;
+}
+.git-author {
+  color: var(--text-dim);
+  font-size: 12px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.git-hash {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+.git-ref {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 9px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.git-ref.branch {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+.git-ref.tag {
+  border-color: #d9a441;
+  color: #e0b65a;
+}
+.git-ref.remote {
+  opacity: 0.7;
+}
+
+.git-detail {
+  width: 340px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border-soft);
+  background: var(--bg-elev);
+  overflow: auto;
+  padding: 16px;
+}
+.git-detail-msg {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  font-size: 13.5px;
+  line-height: 1.5;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.git-detail-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 12.5px;
+}
+.git-detail-meta dt {
+  color: var(--text-dim);
+}
+.git-detail-meta dd {
+  margin: 0;
+  color: var(--text);
+  word-break: break-word;
+}
+.git-detail-meta .mono {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+.git-detail-meta .muted {
+  color: var(--text-dim);
+}
+.git-parent-link {
+  background: none;
+  border: none;
+  padding: 0 6px 0 0;
+  color: var(--accent-hover);
+  cursor: pointer;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 12.5px;
+}
+.git-parent-link:hover {
+  text-decoration: underline;
+}
+
+.git-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-dim);
+  background: var(--bg);
+  text-align: center;
+}
+.git-empty p {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+}
+.git-empty small {
+  font-size: 12.5px;
+}
+.git-empty .btn-accent {
+  margin-top: 6px;
+}
+
+.git-loading {
+  position: absolute;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+/* GitHub repo 그래프 캔버스 + 토큰 입력 */
+.git-graph-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+}
+.git-graph-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.gh-token-input {
+  width: 340px;
+  max-width: 80%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 13px;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+.gh-token-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.gh-token-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 4px;
+}
+.gh-error {
+  color: #f2786a;
+}
+
+/* 토글 스위치 (설정의 통합 보기 등) */
+.toggle {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-card);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.toggle.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease;
+}
+.toggle.on .toggle-knob {
+  transform: translateX(18px);
+}

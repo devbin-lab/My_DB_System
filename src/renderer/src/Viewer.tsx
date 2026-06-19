@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import Papa from 'papaparse'
@@ -221,8 +221,13 @@ export default function Viewer({
 
 function CsvTable({ text }: { text: string }) {
   const t = useT()
-  const result = Papa.parse<string[]>(text.trim(), { skipEmptyLines: true })
-  const rows = (result.data as string[][]).slice(0, 1000)
+  // 파싱은 text가 바뀔 때만(부모 리렌더마다 재파싱 방지)
+  const allRows = useMemo(
+    () => Papa.parse<string[]>(text.trim(), { skipEmptyLines: true }).data as string[][],
+    [text]
+  )
+  const truncated = allRows.length > 1000
+  const rows = truncated ? allRows.slice(0, 1000) : allRows
   if (rows.length === 0) return <div className="empty">{t('viewer.emptyCsv')}</div>
   const [header, ...body] = rows
   return (
@@ -245,9 +250,7 @@ function CsvTable({ text }: { text: string }) {
           ))}
         </tbody>
       </table>
-      {(result.data as string[][]).length > 1000 && (
-        <div className="csv-note">{t('viewer.csvNote')}</div>
-      )}
+      {truncated && <div className="csv-note">{t('viewer.csvNote')}</div>}
     </div>
   )
 }

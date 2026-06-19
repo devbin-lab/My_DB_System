@@ -1,33 +1,24 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ItemLink, ItemType, LibraryItem, Link, Pivot, Settings } from './types'
 import GraphView from './GraphView'
+import RepoGraph from './RepoGraph'
+import CombinedGraph from './CombinedGraph'
 import SettingsModal from './Settings'
 import TrashModal from './Trash'
 import Onboarding from './Onboarding'
+import Topbar from './components/Topbar'
+import LibraryView from './components/LibraryView'
+import PreviewPanel from './components/PreviewPanel'
 import { NoticeDialog } from './graph/overlays'
-import { I18nContext, LOCALES, makeT } from './i18n'
-
-// 뷰어는 react-markdown / highlight.js / papaparse 등 무거운 의존성을 쓰므로
-// 필요할 때만 불러오도록 코드 분할(lazy)한다. 초기 번들이 가벼워진다.
-const Viewer = lazy(() => import('./Viewer'))
-import {
-  IconDownload,
-  IconEye,
-  IconFolder,
-  IconGraph,
-  IconList,
-  IconPlus,
-  IconSearch,
-  IconSettings,
-  IconTrash,
-  IconX
-} from './Icons'
+import { I18nContext, makeT } from './i18n'
+import { IconDownload } from './Icons'
 
 const DEFAULT_SETTINGS: Settings = {
   maxSearchResults: 12,
   theme: 'slate',
   accent: 'teal',
-  language: 'en'
+  language: 'en',
+  combineGraphs: false
 }
 
 // 테마별 그래프 캔버스 팔레트
@@ -73,35 +64,13 @@ const GRAPH_PALETTES: Record<Settings['theme'], Omit<GraphPalette, 'accent'>> = 
   }
 }
 
-export const TYPE_COLORS: Record<ItemType, string> = {
-  md: '#7c6af2',
-  pdf: '#f2786a',
-  csv: '#5fd068',
-  code: '#5ab8f5',
-  image: '#f5c95a',
-  ppt: '#e8703a',
-  xls: '#2aa775',
-  other: '#8a8fa8'
-}
-
-function extLabel(item: LibraryItem): string {
-  const e = item.ext.replace('.', '').toUpperCase()
-  return e.length > 4 ? e.slice(0, 4) : e || 'FILE'
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-}
-
 export default function App() {
   const [items, setItems] = useState<LibraryItem[]>([])
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [dataDir, setDataDir] = useState('')
   const [dragOver, setDragOver] = useState(false)
-  const [view, setView] = useState<'graph' | 'library'>('graph')
+  const [view, setView] = useState<'graph' | 'library' | 'git'>('graph')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [trashOpen, setTrashOpen] = useState(false)
   const [notice, setNotice] = useState<string | null>(null) // 앱 내 알림 모달 메시지
@@ -126,10 +95,14 @@ export default function App() {
       if (trashOpen) setTrashOpen(false)
       else if (settingsOpen) setSettingsOpen(false)
       else if (previewId) setPreviewId(null)
+      else if (notice) setNotice(null)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [previewId, settingsOpen, trashOpen])
+  }, [previewId, settingsOpen, trashOpen, notice])
+
+  // 안정적인 핸들러(매 렌더 새 함수 X) → 그래프 시뮬레이션이 불필요하게 재빌드되지 않음
+  const handleOpenItem = useCallback((id: string) => setPreviewId(id), [])
 
   const refresh = useCallback(async () => {
     const [its, pvs, lks, ils, pls] = await Promise.all([
@@ -168,6 +141,11 @@ export default function App() {
     document.documentElement.dataset.accent = settings.accent
   }, [settings.theme, settings.accent])
 
+  // 통합 모드를 켜면 Git 탭이 사라지므로, 그 상태로 남지 않게 그래프로 되돌린다.
+  useEffect(() => {
+    if (settings.combineGraphs && view === 'git') setView('graph')
+  }, [settings.combineGraphs, view])
+
   const palette = useMemo(
     () => ({ ...GRAPH_PALETTES[settings.theme], accent: ACCENT_HEX[settings.accent] }),
     [settings.theme, settings.accent]
@@ -179,6 +157,10 @@ export default function App() {
     try {
       const newDir = await window.api.setStorageDir(chosen)
       setDataDir(newDir)
+      // 저장소를 전환하면 선택/포커스 상태를 초기화한다(데이터 컨텍스트가 바뀌므로)
+      setActivePivotId(null)
+      setSelectedId(null)
+      setPreviewId(null)
       await refresh()
     } catch {
       setNotice(t('app.storage.moveFailed'))
@@ -188,16 +170,6 @@ export default function App() {
   const exportBackup = async () => {
     const dest = await window.api.exportBackup()
     if (dest) setNotice(t('app.backup.exported', { path: dest }))
-  }
-
-  const openBackup = async () => {
-    const newDir = await window.api.openBackup()
-    if (newDir === dataDir) return
-    setDataDir(newDir)
-    setActivePivotId(null)
-    setSelectedId(null)
-    setPreviewId(null)
-    await refresh()
   }
 
   // 라이브러리에 존재하는 타입(필터 칩 노출용)과 모든 태그(자동완성용)
@@ -325,267 +297,97 @@ export default function App() {
       onDrop={handleDrop}
     >
       {/* 상단 툴바 */}
-      <header className="topbar">
-        <button className="brand" onClick={() => setView('graph')}>
-          <span className="brand-mark" />
-          <span className="brand-name">My DB System</span>
-        </button>
-
-        <div className="topbar-right">
-          <div className="seg">
-            <button
-              className={view === 'graph' ? 'on' : ''}
-              onClick={() => setView('graph')}
-            >
-              <IconGraph size={15} />
-              <span>{t('topbar.graph')}</span>
-            </button>
-            <button
-              className={view === 'library' ? 'on' : ''}
-              onClick={() => setView('library')}
-            >
-              <IconList size={15} />
-              <span>{t('topbar.list')}</span>
-            </button>
-          </div>
-
-          <button
-            className="tb-icon"
-            title={t('topbar.openFolder')}
-            onClick={() => window.api.openDataDir()}
-          >
-            <IconFolder size={17} />
-          </button>
-          <button
-            className="tb-icon"
-            title={t('topbar.trash')}
-            onClick={() => setTrashOpen(true)}
-          >
-            <IconTrash size={17} />
-          </button>
-          <button
-            className="tb-icon"
-            title={t('topbar.settings')}
-            onClick={() => setSettingsOpen(true)}
-          >
-            <IconSettings size={17} />
-          </button>
-
-          <button className="btn-accent" onClick={handleImport}>
-            <IconPlus size={15} />
-            <span>{t('topbar.addFile')}</span>
-          </button>
-        </div>
-      </header>
+      <Topbar
+        view={view}
+        setView={setView}
+        combineGraphs={settings.combineGraphs}
+        onOpenFolder={() => window.api.openDataDir()}
+        onTrash={() => setTrashOpen(true)}
+        onSettings={() => setSettingsOpen(true)}
+        onImport={handleImport}
+      />
 
       {/* 본문 */}
       <main className="content">
         {view === 'graph' ? (
           <section className="graph-pane">
-            <GraphView
-              items={items}
-              pivots={pivots}
-              links={links}
-              itemLinks={itemLinks}
-              pivotLinks={pivotLinks}
-              activePivotId={activePivotId}
-              maxResults={settings.maxSearchResults}
-              palette={palette}
-              onOpenItem={(id) => setPreviewId(id)}
-              onSelectPivot={setActivePivotId}
-              onCreatePivot={createPivot}
-              onRenamePivot={renamePivot}
-              onRenameItem={renameItem}
-              onDeletePivot={removePivot}
-              onDeletePivotCascade={removePivotCascade}
-              onDeleteItem={handleRemove}
-              onConnect={connect}
-              onDisconnect={disconnect}
-              onConnectItems={connectItems}
-              onDisconnectItems={disconnectItems}
-              onConnectPivots={connectPivots}
-              onDisconnectPivots={disconnectPivots}
-            />
+            {settings.combineGraphs ? (
+              <CombinedGraph
+                items={items}
+                pivots={pivots}
+                links={links}
+                itemLinks={itemLinks}
+                pivotLinks={pivotLinks}
+                palette={palette}
+                onOpenItem={handleOpenItem}
+              />
+            ) : (
+              <GraphView
+                items={items}
+                pivots={pivots}
+                links={links}
+                itemLinks={itemLinks}
+                pivotLinks={pivotLinks}
+                activePivotId={activePivotId}
+                maxResults={settings.maxSearchResults}
+                palette={palette}
+                onOpenItem={handleOpenItem}
+                onSelectPivot={setActivePivotId}
+                onCreatePivot={createPivot}
+                onRenamePivot={renamePivot}
+                onRenameItem={renameItem}
+                onDeletePivot={removePivot}
+                onDeletePivotCascade={removePivotCascade}
+                onDeleteItem={handleRemove}
+                onConnect={connect}
+                onDisconnect={disconnect}
+                onConnectItems={connectItems}
+                onDisconnectItems={disconnectItems}
+                onConnectPivots={connectPivots}
+                onDisconnectPivots={disconnectPivots}
+              />
+            )}
             {previewId &&
               (() => {
                 const item = items.find((i) => i.id === previewId)
                 if (!item) return null
                 return (
-                  <div className="preview-panel">
-                    <div className="preview-bar">
-                      <span className="preview-title">
-                        <IconEye size={14} />
-                        {t('app.preview.readOnly')}
-                      </span>
-                      <div className="preview-bar-actions">
-                        <button
-                          onClick={() => {
-                            setSelectedId(item.id)
-                            setView('library')
-                            setPreviewId(null)
-                          }}
-                        >
-                          <IconList size={13} />
-                          <span>{t('app.preview.openInList')}</span>
-                        </button>
-                        <button className="icon-only" onClick={() => setPreviewId(null)}>
-                          <IconX size={14} />
-                        </button>
-                      </div>
-                    </div>
-                    <Suspense fallback={<div className="empty">{t('common.loading')}</div>}>
-                      <Viewer key={item.id} item={item} readOnly allTags={allTags} />
-                    </Suspense>
-                  </div>
+                  <PreviewPanel
+                    item={item}
+                    allTags={allTags}
+                    onOpenInList={() => {
+                      setSelectedId(item.id)
+                      setView('library')
+                      setPreviewId(null)
+                    }}
+                    onClose={() => setPreviewId(null)}
+                  />
                 )
               })()}
           </section>
-        ) : (
-          <section className="library">
-            <aside className="lib-list">
-              <div className="lib-search">
-                <IconSearch size={15} />
-                <input
-                  placeholder={t('app.lib.searchPlaceholder')}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                {search && (
-                  <button className="clear" onClick={() => setSearch('')}>
-                    <IconX size={13} />
-                  </button>
-                )}
-              </div>
-
-              {/* 타입 필터 + 정렬 */}
-              <div className="lib-toolbar">
-                {presentTypes.length > 0 && (
-                  <div className="lib-filters">
-                    <button
-                      className={`type-chip ${typeFilter === 'all' ? 'on' : ''}`}
-                      onClick={() => setTypeFilter('all')}
-                    >
-                      {t('app.lib.filterAll')}
-                    </button>
-                    {presentTypes.map((tp) => (
-                      <button
-                        key={tp}
-                        className={`type-chip ${typeFilter === tp ? 'on' : ''}`}
-                        style={
-                          typeFilter === tp
-                            ? { color: TYPE_COLORS[tp], borderColor: TYPE_COLORS[tp] }
-                            : undefined
-                        }
-                        onClick={() => setTypeFilter(tp)}
-                      >
-                        {t(`type.${tp}`)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <select
-                  className="lib-sort"
-                  value={sortBy}
-                  title={t('app.lib.sortLabel')}
-                  onChange={(e) => setSortBy(e.target.value as 'recent' | 'name' | 'size')}
-                >
-                  <option value="recent">{t('app.lib.sort.recent')}</option>
-                  <option value="name">{t('app.lib.sort.name')}</option>
-                  <option value="size">{t('app.lib.sort.size')}</option>
-                </select>
-              </div>
-
-              <div className="lib-items">
-                {filtered.length === 0 && (
-                  <div className="empty">
-                    {items.length === 0 ? (
-                      <>
-                        <IconDownload size={28} />
-                        <p>
-                          {t('app.lib.emptyDrop')
-                            .split('\n')
-                            .map((line, i) => (
-                              <span key={i}>
-                                {i > 0 && <br />}
-                                {line}
-                              </span>
-                            ))}
-                        </p>
-                      </>
-                    ) : (
-                      <p>{t('app.lib.noResults')}</p>
-                    )}
-                  </div>
-                )}
-                {filtered.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`lib-card ${selectedId === item.id ? 'selected' : ''}`}
-                    onClick={() => setSelectedId(item.id)}
-                  >
-                    <span
-                      className="ext-badge"
-                      style={{
-                        color: TYPE_COLORS[item.type],
-                        background: `${TYPE_COLORS[item.type]}1a`
-                      }}
-                    >
-                      {extLabel(item)}
-                    </span>
-                    <div className="lib-card-info">
-                      <div className="lib-card-name">{item.name}</div>
-                      <div className="lib-card-meta">
-                        {formatSize(item.size)} ·{' '}
-                        {new Date(item.createdAt).toLocaleDateString(LOCALES[settings.language])}
-                        {item.tags.length > 0 && (
-                          <span className="lib-card-tags">
-                            {' · '}
-                            {item.tags.map((tag) => (
-                              <button
-                                key={tag}
-                                className="tag-link"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setSearch(tag)
-                                }}
-                              >
-                                #{tag}
-                              </button>
-                            ))}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      className="lib-card-del"
-                      title={t('app.lib.deleteTitle')}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleRemove(item.id)
-                      }}
-                    >
-                      <IconTrash size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </aside>
-
-            <div className="lib-viewer">
-              {selected ? (
-                <Suspense fallback={<div className="empty">{t('common.loading')}</div>}>
-                  <Viewer
-                    key={selected.id}
-                    item={selected}
-                    onTagsChange={refresh}
-                    allTags={allTags}
-                  />
-                </Suspense>
-              ) : (
-                <div className="empty">{t('app.lib.selectToView')}</div>
-              )}
-            </div>
+        ) : view === 'git' ? (
+          <section className="git-view">
+            <RepoGraph palette={palette} />
           </section>
+        ) : (
+          <LibraryView
+            items={items}
+            filtered={filtered}
+            presentTypes={presentTypes}
+            typeFilter={typeFilter}
+            setTypeFilter={setTypeFilter}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            search={search}
+            setSearch={setSearch}
+            selected={selected}
+            selectedId={selectedId}
+            setSelectedId={setSelectedId}
+            allTags={allTags}
+            language={settings.language}
+            onRemove={handleRemove}
+            onTagsChange={refresh}
+          />
         )}
       </main>
 
@@ -598,7 +400,6 @@ export default function App() {
           onChangeStorage={changeStorage}
           onOpenStorage={() => window.api.openDataDir()}
           onExportBackup={exportBackup}
-          onImportBackup={openBackup}
           onClose={() => setSettingsOpen(false)}
         />
       )}

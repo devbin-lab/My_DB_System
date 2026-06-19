@@ -13,6 +13,10 @@ import {
 } from '../Icons'
 import type { GNode, GraphPalette, LinkSource, MenuMode, Target } from './types'
 
+// 노드 종류별 점(dot) 색 — 여러 오버레이에서 공통 사용
+const dotColor = (kind: 'pivot' | 'item', p: GraphPalette): string =>
+  kind === 'pivot' ? p.pivot : p.file
+
 // 앱 스타일의 알림 모달(OS 기본 alert 대체, 확인 버튼 하나)
 export function NoticeDialog({
   message,
@@ -157,7 +161,7 @@ export function LinkingBanner({
             <button key={`${c.kind}:${c.id}`} onClick={() => finishLink(c.kind, c.id)}>
               <span
                 className="dot"
-                style={{ background: c.kind === 'pivot' ? palette.pivot : palette.file }}
+                style={{ background: dotColor(c.kind, palette) }}
               />
               <span className="t-name">{c.name}</span>
             </button>
@@ -261,7 +265,7 @@ export function RadialSearch({
             >
               <span
                 className="dot"
-                style={{ background: item.kind === 'pivot' ? palette.pivot : palette.file }}
+                style={{ background: dotColor(item.kind, palette) }}
               />
               <span className="b-name">{item.name}</span>
             </button>
@@ -354,7 +358,7 @@ export function NodeMenu({
         <div className="node-menu-title">
           <span
             className="dot"
-            style={{ background: menu.node.kind === 'pivot' ? palette.pivot : palette.file }}
+            style={{ background: dotColor(menu.node.kind, palette) }}
           />
           <span className="t-name">{menu.node.label}</span>
         </div>
@@ -463,7 +467,7 @@ export function NodeMenu({
                 <button key={`${dt.kind}:${dt.id}`} onClick={() => applyDisconnect(dt)}>
                   <span
                     className="dot"
-                    style={{ background: dt.kind === 'pivot' ? palette.pivot : palette.file }}
+                    style={{ background: dotColor(dt.kind, palette) }}
                   />
                   <span className="t-name">{dt.name}</span>
                 </button>
