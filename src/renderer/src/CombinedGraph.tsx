@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GitHubRepo, GitHubTreeEntry, ItemLink, LibraryItem, Link, Pivot } from './types'
 import { useT } from './i18n'
-import type { GNode, GraphPalette, LinkSource } from './graph/types'
+import type { GraphPalette } from './graph/types'
 import { useGraphSimulation } from './graph/useGraphSimulation'
+import { isLocalRef, useGraphInteractions } from './graph/useGraphInteractions'
 import { buildOwnerCluster, buildRepoTree, parseRef } from './graph/github'
 import { IconArrowLeft } from './Icons'
 
 // 통합 보기: 로컬 피벗 그래프 + GitHub(owner→repo) 군집을 한 캔버스에.
 // 포커스(드릴다운) 지원: 로컬 피벗 클릭=그 하위 트리 / repo 클릭=그 repo 파일 트리. ←로 복귀.
+// 로컬 노드(피벗/파일)는 우클릭으로 검색·이름변경·삭제·연결이 가능하고, GitHub 노드는 읽기 전용.
 
 interface Props {
   items: LibraryItem[]
@@ -16,13 +18,48 @@ interface Props {
   itemLinks: ItemLink[]
   pivotLinks: ItemLink[]
   palette: GraphPalette
+  maxResults?: number
   onOpenItem: (id: string) => void
+  // parentId가 있으면 새 피벗을 그 부모의 자식으로 매단다(없으면 독립 루트).
+  onCreatePivot: (parentId: string | null) => Promise<Pivot>
+  onRenamePivot: (id: string, name: string) => void
+  onRenameItem: (id: string, name: string) => void
+  onDeletePivot: (id: string) => void
+  onDeletePivotCascade: (id: string) => void
+  onDeleteItem: (id: string) => void
+  onConnect: (pivotId: string, itemId: string) => void
+  onDisconnect: (pivotId: string, itemId: string) => void
+  onConnectItems: (a: string, b: string) => void
+  onDisconnectItems: (a: string, b: string) => void
+  onConnectPivots: (a: string, b: string) => void
+  onDisconnectPivots: (a: string, b: string) => void
 }
 
 type Focus = { kind: 'pivot'; id: string } | { kind: 'repo'; id: string } | null
 
 export default function CombinedGraph(props: Props) {
-  const { items, pivots, links, itemLinks, pivotLinks, palette, onOpenItem } = props
+  const {
+    items,
+    pivots,
+    links,
+    itemLinks,
+    pivotLinks,
+    palette,
+    maxResults = 12,
+    onOpenItem,
+    onCreatePivot,
+    onRenamePivot,
+    onRenameItem,
+    onDeletePivot,
+    onDeletePivotCascade,
+    onDeleteItem,
+    onConnect,
+    onDisconnect,
+    onConnectItems,
+    onDisconnectItems,
+    onConnectPivots,
+    onDisconnectPivots
+  } = props
   const t = useT()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [repos, setRepos] = useState<GitHubRepo[]>([])
@@ -105,49 +142,76 @@ export default function CombinedGraph(props: Props) {
     [graph.pivots, graph.items]
   )
 
-  const spawnRef = useRef<{ id: string; x: number; y: number } | null>(null)
-  const nodesRef = useRef<GNode[]>([])
-  const focusRef = useRef<((id: string) => void) | null>(null)
-  const linkingRef = useRef<LinkSource | null>(null)
-  const nodeClickRef = useRef<(n: { refId: string; kind: 'pivot' | 'item'; label: string }) => void>(
-    () => {}
+  // 우클릭 검색은 "현재 화면에 보이는 로컬 노드"만 대상으로 한다(GitHub 노드는 제외).
+  const searchPivots = useMemo(
+    () => graph.pivots.filter((p) => isLocalRef(p.id)),
+    [graph.pivots]
   )
-  nodeClickRef.current = (n) => {
-    const refId = n.refId
-    if (!focus) {
-      if (refId.startsWith('owner:')) {
-        if (login) void window.api.openUrl(`https://github.com/${login}`)
-      } else if (refId.startsWith('repo:')) {
-        const fullName = refId.slice(5)
-        setFocus({ kind: 'repo', id: fullName })
-        void loadTree(fullName)
-      } else if (n.kind === 'item') {
-        onOpenItem(refId) // 로컬 파일 → 미리보기
-      } else {
-        setFocus({ kind: 'pivot', id: refId }) // 로컬 피벗 → 하위 트리로 진입
-      }
-    } else if (focus.kind === 'pivot') {
-      if (n.kind === 'item') onOpenItem(refId)
-      else setFocus({ kind: 'pivot', id: refId }) // 더 깊이 드릴다운
-    } else {
-      // repo 포커스: 폴더/파일은 GitHub로, repo 노드는 repo 페이지로
-      const ref = parseRef(refId)
-      if (ref.kind === 'dir') {
-        const r = repoByName.get(ref.fullName)
-        if (r) void window.api.openUrl(`${r.htmlUrl}/tree/${r.defaultBranch}/${ref.path}`)
-      } else if (ref.kind === 'file') {
-        const r = repoByName.get(ref.fullName)
-        if (r) void window.api.openUrl(`${r.htmlUrl}/blob/${r.defaultBranch}/${ref.path}`)
-      } else if (ref.kind === 'repo') {
-        const r = repoByName.get(ref.fullName)
-        if (r) void window.api.openUrl(r.htmlUrl)
-      }
-    }
-  }
+  const searchItems = useMemo(() => graph.items.filter((i) => isLocalRef(i.id)), [graph.items])
 
-  const noop = (): void => {}
   const paletteRef = useRef(palette)
   paletteRef.current = palette
+
+  // 우클릭 상호작용. 연결/검색 대상 풀은 로컬 전체(props)로 — GitHub 합성 링크는 제외한다.
+  // 연결 모드가 아닐 때의 좌클릭: 로컬 피벗=드릴다운, 로컬 파일=미리보기, GitHub 노드=웹으로.
+  const interactions = useGraphInteractions({
+    canvasRef,
+    palette,
+    maxResults,
+    searchPivots,
+    searchItems,
+    pivots,
+    items,
+    links,
+    itemLinks,
+    pivotLinks,
+    onNodeActivate: (n) => {
+      const refId = n.refId
+      if (!focus) {
+        if (refId.startsWith('owner:')) {
+          if (login) void window.api.openUrl(`https://github.com/${login}`)
+        } else if (refId.startsWith('repo:')) {
+          const fullName = refId.slice(5)
+          setFocus({ kind: 'repo', id: fullName })
+          void loadTree(fullName)
+        } else if (n.kind === 'item') {
+          onOpenItem(refId) // 로컬 파일 → 미리보기
+        } else {
+          setFocus({ kind: 'pivot', id: refId }) // 로컬 피벗 → 하위 트리로 진입
+        }
+      } else if (focus.kind === 'pivot') {
+        if (n.kind === 'item') onOpenItem(refId)
+        else setFocus({ kind: 'pivot', id: refId }) // 더 깊이 드릴다운
+      } else {
+        // repo 포커스: 폴더/파일은 GitHub로, repo 노드는 repo 페이지로
+        const ref = parseRef(refId)
+        if (ref.kind === 'dir') {
+          const r = repoByName.get(ref.fullName)
+          if (r) void window.api.openUrl(`${r.htmlUrl}/tree/${r.defaultBranch}/${ref.path}`)
+        } else if (ref.kind === 'file') {
+          const r = repoByName.get(ref.fullName)
+          if (r) void window.api.openUrl(`${r.htmlUrl}/blob/${r.defaultBranch}/${ref.path}`)
+        } else if (ref.kind === 'repo') {
+          const r = repoByName.get(ref.fullName)
+          if (r) void window.api.openUrl(r.htmlUrl)
+        }
+      }
+    },
+    // 통합 보기는 자체 focus로 드릴다운한다. 새 피벗의 부모는 전역 activePivotId가 아니라
+    // 현재 드릴다운한 피벗(focus)에서 가져온다 → 개요에서는 독립 루트, 피벗 내부에서는 그 자식.
+    onCreatePivot: () => onCreatePivot(focus?.kind === 'pivot' ? focus.id : null),
+    onRenamePivot,
+    onRenameItem,
+    onDeletePivot,
+    onDeletePivotCascade,
+    onDeleteItem,
+    onConnect,
+    onDisconnect,
+    onConnectItems,
+    onDisconnectItems,
+    onConnectPivots,
+    onDisconnectPivots
+  })
 
   useGraphSimulation({
     canvasRef,
@@ -160,19 +224,19 @@ export default function CombinedGraph(props: Props) {
     pivots: graph.pivots,
     items: graph.items,
     paletteRef,
-    spawnRef,
-    nodesRef,
-    focusRef,
-    nodeClickRef,
-    linkingRef,
-    setSearch: noop,
-    setQuery: noop,
-    setMenu: noop,
-    setMenuMode: noop,
-    setRenameText: noop,
-    closeMenu: noop,
+    spawnRef: interactions.spawnRef,
+    nodesRef: interactions.nodesRef,
+    focusRef: interactions.focusRef,
+    nodeClickRef: interactions.nodeClickRef,
+    linkingRef: interactions.linkingRef,
+    setSearch: interactions.setSearch,
+    setQuery: interactions.setQuery,
+    setMenu: interactions.setMenu,
+    setMenuMode: interactions.setMenuMode,
+    setRenameText: interactions.setRenameText,
+    closeMenu: interactions.closeMenu,
     onOpenItem,
-    onSelectPivot: noop
+    onSelectPivot: () => {}
   })
 
   // 포커스 배너 라벨
@@ -201,6 +265,9 @@ export default function CombinedGraph(props: Props) {
           )}
         </div>
       )}
+
+      {interactions.overlays}
+
       <div className="graph-legend">
         {focus?.kind === 'repo'
           ? t('gh.legendRepo')

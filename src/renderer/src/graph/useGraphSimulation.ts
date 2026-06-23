@@ -222,12 +222,14 @@ export function useGraphSimulation(params: SimulationParams): void {
 
     for (const p of visible.pivots) {
       add({ id: `pivot:${p.id}`, refId: p.id, kind: 'pivot', label: p.name, r: pivotRadius(p.id) })
-      // 방금 생성한 피벗은 우클릭한 자리에 고정(이름 입력 동안)
+      // 방금 생성한 피벗은 우클릭한 자리에 고정(이름 입력 동안).
+      // spawn 좌표는 화면(캔버스) 좌표이므로 노드의 월드 좌표로 변환해 둔다
+      // (줌/패닝된 상태에서도 커서 위치에 정확히 놓이도록).
       const spawn = spawnRef.current
       if (spawn && spawn.id === p.id) {
         const n = nodes[nodes.length - 1]
-        n.x = spawn.x
-        n.y = spawn.y
+        n.x = (spawn.x - offsetX) / scale
+        n.y = (spawn.y - offsetY) / scale
         n.fixed = true
       }
     }

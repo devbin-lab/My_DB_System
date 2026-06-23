@@ -235,13 +235,17 @@ export default function App() {
 
   // ----- 피벗 / 연결 콜백 -----
   // 생성 즉시 그래프에 나타나고, 이름은 그 자리에서 바로 입력받는다(GraphView)
-  const createPivot = async (): Promise<Pivot> => {
+  // 부모 피벗 아래에 새 피벗을 만든다(parentId가 있으면 부모 → 새 피벗 연결).
+  // 어떤 피벗을 부모로 삼을지는 호출하는 뷰가 결정한다 — GraphView는 activePivotId,
+  // CombinedGraph는 자체 focus를 넘긴다(전역 activePivotId에 의존하지 않도록).
+  const createPivotUnder = async (parentId: string | null): Promise<Pivot> => {
     const pivot = await window.api.createPivot(t('app.pivot.new'))
-    // 피벗 집중 보기 중이면 새 피벗을 그 피벗의 자식으로 연결한다(부모 → 새 피벗).
-    if (activePivotId) await window.api.addPivotLink(activePivotId, pivot.id)
+    if (parentId) await window.api.addPivotLink(parentId, pivot.id)
     await refresh()
     return pivot
   }
+  // GraphView용: 집중 보기 중이면 그 피벗의 자식으로 매단다.
+  const createPivot = (): Promise<Pivot> => createPivotUnder(activePivotId)
   const renamePivot = async (id: string, name: string) => {
     await window.api.renamePivot(id, name)
     await refresh()
@@ -319,7 +323,20 @@ export default function App() {
                 itemLinks={itemLinks}
                 pivotLinks={pivotLinks}
                 palette={palette}
+                maxResults={settings.maxSearchResults}
                 onOpenItem={handleOpenItem}
+                onCreatePivot={createPivotUnder}
+                onRenamePivot={renamePivot}
+                onRenameItem={renameItem}
+                onDeletePivot={removePivot}
+                onDeletePivotCascade={removePivotCascade}
+                onDeleteItem={handleRemove}
+                onConnect={connect}
+                onDisconnect={disconnect}
+                onConnectItems={connectItems}
+                onDisconnectItems={disconnectItems}
+                onConnectPivots={connectPivots}
+                onDisconnectPivots={disconnectPivots}
               />
             ) : (
               <GraphView
