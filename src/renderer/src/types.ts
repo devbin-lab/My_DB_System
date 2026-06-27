@@ -13,7 +13,19 @@ export interface LibraryItem {
 }
 
 export type ThemeId = 'slate' | 'light' | 'navy'
-export type AccentId = 'violet' | 'teal' | 'blue' | 'amber' | 'green'
+export type AccentId =
+  | 'violet'
+  | 'teal'
+  | 'blue'
+  | 'amber'
+  | 'green'
+  | 'rose'
+  | 'orange'
+  | 'lime'
+  | 'cyan'
+  | 'fuchsia'
+  | 'gray'
+  | 'black'
 export type Language = 'ko' | 'en' | 'ja'
 
 export interface Settings {

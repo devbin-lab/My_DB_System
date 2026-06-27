@@ -86,11 +86,11 @@ export const ko: Dict = {
   'onboard.appearance.accent': '포인트 색상',
   'onboard.storage.title': '데이터 저장 위치',
   'onboard.storage.desc':
-    '추가하는 모든 파일이 이 폴더로 복사되어 보관됩니다. 클라우드 동기화 폴더(예: 드롭박스)를 골라도 됩니다. 나중에 옮기면 데이터도 함께 이동해요.',
+    '추가한 모든 파일이 이 폴더에 보관됩니다. 클라우드 동기화 폴더(예: 드롭박스)도 괜찮아요. 나중에 옮기면 데이터도 함께 이동합니다.',
   'onboard.storage.change': '폴더 변경',
   'onboard.graph.title': '그래프 검색 개수',
   'onboard.graph.desc':
-    '그래프 화면에서 우클릭 검색 시 한 번에 보여줄 결과 수입니다. 12개마다 바깥쪽 시계 링이 하나씩 늘어납니다.',
+    '그래프에서 우클릭으로 검색할 때 한 번에 보여줄 결과 수입니다. 12개마다 바깥쪽 시계 링이 하나씩 늘어납니다.',
   'onboard.graph.count': '검색 결과 표시 개수',
   'onboard.start': '시작하기',
 
@@ -101,12 +101,12 @@ export const ko: Dict = {
   'settings.accent': '포인트 색상',
   'settings.storage.title': '저장소',
   'settings.storage.desc':
-    '추가하는 모든 파일이 이 폴더로 복사되어 보관됩니다. 위치를 바꾸면 기존 데이터도 함께 옮겨집니다.',
+    '추가한 모든 파일이 이 폴더에 보관됩니다. 위치를 바꾸면 기존 데이터도 함께 옮겨집니다.',
   'settings.storage.change': '폴더 변경',
   'settings.storage.open': '탐색기에서 열기',
   'settings.backup.title': '백업',
   'settings.backup.desc':
-    '저장소 전체(파일·DB)를 다른 폴더로 내보내거나, 백업 폴더를 불러옵니다. 가져오면 현재 데이터는 원래 위치에 그대로 남고 백업 폴더로 전환됩니다.',
+    '저장소 전체(파일·DB)를 선택한 폴더 안에 타임스탬프가 붙은 백업 폴더로 복사합니다.',
   'settings.backup.export': '백업 내보내기',
   'settings.github.title': '깃허브 연결',
   'settings.github.desc': 'Git 탭에서 불러올 GitHub 계정 연결을 관리합니다.',
@@ -115,7 +115,7 @@ export const ko: Dict = {
   'settings.github.notConnected': '연결 안 됨',
   'settings.github.disconnect': '연결 해제',
   'settings.combine.title': '그래프 통합 보기',
-  'settings.combine.desc': '로컬 그래프와 GitHub 저장소를 한 화면에 함께 볼지, 따로 탭으로 나눌지 선택합니다.',
+  'settings.combine.desc': '로컬 그래프와 GitHub 저장소를 한 화면에 함께 볼지, 탭으로 나눌지 선택합니다.',
   'settings.combine.integrated': '통합(한 화면)',
   'combine.legend': '로컬 파일 클릭=미리보기 · 피벗/repo 클릭=내부 보기 · 중앙=GitHub 계정',
   'combine.legendPivot': '파일 클릭=미리보기 · 피벗 클릭=하위 보기 · 좌상단 ←로 뒤로',
@@ -151,6 +151,13 @@ export const ko: Dict = {
   'accent.violet': '바이올렛',
   'accent.amber': '앰버',
   'accent.green': '그린',
+  'accent.rose': '로즈',
+  'accent.orange': '오렌지',
+  'accent.lime': '라임',
+  'accent.cyan': '시안',
+  'accent.fuchsia': '푸시아',
+  'accent.gray': '그레이',
+  'accent.black': '블랙',
 
   // 뷰어
   'viewer.openExternal': '외부에서 열기',
@@ -183,5 +190,7 @@ export const ko: Dict = {
   'graph.emptyPivot': '이 피벗에 연결된 파일이 없습니다.',
   'graph.empty': '비어 있습니다.',
   'graph.emptyHint': '빈 곳을 우클릭해 피벗을 만들거나, 파일을 추가하세요.',
-  'graph.legend': '클릭=열기/피벗진입 · 우클릭(빈곳)=검색·피벗생성 · 우클릭(노드)=메뉴'
+  'graph.legend': '클릭=열기/피벗진입 · 우클릭(빈곳)=검색·피벗생성 · 우클릭(노드)=메뉴',
+  'graph.keyPivot': '피벗',
+  'graph.keyFile': '파일'
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { AccentId, Language, Settings, ThemeId, UpdateStatus } from './types'
 import { IconDownload, IconFolder, IconX } from './Icons'
 import { LANGUAGES, useT } from './i18n'
@@ -11,15 +11,69 @@ export const THEMES: { id: ThemeId; swatch: [string, string, string] }[] = [
 ]
 
 // 표시 이름은 i18n 키(accent.<id>)로 번역한다.
+// 단일 규칙 팔레트: 모든 색 = Tailwind 500(기본)/400(hover)/500@15%(soft), 색상환(hue) 순서로 배열.
 export const ACCENTS: { id: AccentId; color: string }[] = [
-  { id: 'teal', color: '#14b8a6' },
-  { id: 'blue', color: '#3b82f6' },
-  { id: 'violet', color: '#7c6af2' },
+  { id: 'rose', color: '#f43f5e' },
+  { id: 'orange', color: '#f97316' },
   { id: 'amber', color: '#f59e0b' },
-  { id: 'green', color: '#22c55e' }
+  { id: 'lime', color: '#84cc16' },
+  { id: 'green', color: '#22c55e' },
+  { id: 'teal', color: '#14b8a6' },
+  { id: 'cyan', color: '#06b6d4' },
+  { id: 'blue', color: '#3b82f6' },
+  { id: 'violet', color: '#8b5cf6' },
+  { id: 'fuchsia', color: '#d946ef' },
+  { id: 'gray', color: '#9ca3af' },
+  { id: 'black', color: 'linear-gradient(135deg, #1d2230 50%, #e8eaf2 50%)' }
 ]
 
-// 업데이트 확인/설치 섹션. 메인 프로세스(electron-updater)의 상태를 구독한다.
+// 한 설정 행: 라벨(제목에 마우스를 올리면 설명 툴팁)은 왼쪽, 컨트롤은 오른쪽 (Claude 데스크톱 스타일).
+function SettingRow({
+  label,
+  desc,
+  children
+}: {
+  label: string
+  desc?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="set-row">
+      <div className="set-row-text">
+        <div className={`set-row-label${desc ? ' has-tip' : ''}`}>
+          {label}
+          {desc && <span className="set-tip">{desc}</span>}
+        </div>
+      </div>
+      <div className="set-row-control">{children}</div>
+    </div>
+  )
+}
+
+// 라벨(+설명) 아래에 넓은 선택 영역(테마 카드·색상 칩·저장 경로 등)을 두는 블록.
+function SettingBlock({
+  label,
+  desc,
+  children
+}: {
+  label: string
+  desc?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="set-block">
+      <div className="set-row-text">
+        <div className={`set-row-label${desc ? ' has-tip' : ''}`}>
+          {label}
+          {desc && <span className="set-tip">{desc}</span>}
+        </div>
+      </div>
+      <div className="set-block-body">{children}</div>
+    </div>
+  )
+}
+
+// 업데이트 확인/설치 행. 메인 프로세스(electron-updater)의 상태를 구독한다.
 function UpdateSection() {
   const t = useT()
   const [version, setVersion] = useState('')
@@ -71,41 +125,32 @@ function UpdateSection() {
   const msg = message()
 
   return (
-    <section className="settings-group">
-      <h3>{t('settings.update.title')}</h3>
-      <div className="setting-row">
-        <div className="setting-label">
-          {t('settings.update.current')}
-          <small>v{version || '…'}</small>
+    <div className="set-row">
+      <div className="set-row-text">
+        <div className="set-row-label">{t('settings.update.title')}</div>
+        <div className="set-row-desc">
+          {t('settings.update.current')} v{version || '…'}
         </div>
-        <div className="setting-control">
-          {status.state === 'downloaded' ? (
-            <button className="btn-accent" onClick={() => window.api.installUpdate()}>
-              <IconDownload size={14} />
-              {t('settings.update.install')}
-            </button>
-          ) : (
-            <button
-              className="btn-ghost"
-              disabled={busy}
-              onClick={() => window.api.checkUpdate()}
-            >
-              {busy ? t('settings.update.checking') : t('settings.update.check')}
-            </button>
-          )}
-        </div>
+        {msg.text && <div className={`set-row-desc update-msg ${msg.tone ?? ''}`}>{msg.text}</div>}
+        {status.state === 'downloading' && (
+          <div className="update-bar">
+            <span style={{ width: `${status.percent ?? 0}%` }} />
+          </div>
+        )}
       </div>
-
-      {msg.text && (
-        <p className={`update-msg ${msg.tone ?? ''}`}>{msg.text}</p>
-      )}
-
-      {status.state === 'downloading' && (
-        <div className="update-bar">
-          <span style={{ width: `${status.percent ?? 0}%` }} />
-        </div>
-      )}
-    </section>
+      <div className="set-row-control">
+        {status.state === 'downloaded' ? (
+          <button className="btn-accent" onClick={() => window.api.installUpdate()}>
+            <IconDownload size={14} />
+            {t('settings.update.install')}
+          </button>
+        ) : (
+          <button className="btn-ghost" disabled={busy} onClick={() => window.api.checkUpdate()}>
+            {busy ? t('settings.update.checking') : t('settings.update.check')}
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -120,28 +165,29 @@ function GitHubSection() {
     await window.api.githubClearToken()
     setConnected(false)
   }
+  const statusText =
+    connected == null
+      ? t('common.loading')
+      : connected
+        ? t('settings.github.connected')
+        : t('settings.github.notConnected')
   return (
-    <section className="settings-group">
-      <h3>{t('settings.github.title')}</h3>
-      <p className="settings-desc">{t('settings.github.desc')}</p>
-      <div className="setting-row">
-        <div className="setting-label">
-          {t('settings.github.status')}
-          <small>
-            {connected == null
-              ? t('common.loading')
-              : connected
-                ? t('settings.github.connected')
-                : t('settings.github.notConnected')}
-          </small>
+    <div className="set-row">
+      <div className="set-row-text">
+        <div className="set-row-label has-tip">
+          {t('settings.github.title')}
+          <span className="set-tip">{t('settings.github.desc')}</span>
         </div>
-        <div className="setting-control">
-          <button className="btn-ghost" disabled={!connected} onClick={disconnect}>
-            {t('settings.github.disconnect')}
-          </button>
+        <div className="set-row-desc">
+          {t('settings.github.status')}: {statusText}
         </div>
       </div>
-    </section>
+      <div className="set-row-control">
+        <button className="btn-ghost" disabled={!connected} onClick={disconnect}>
+          {t('settings.github.disconnect')}
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -173,24 +219,23 @@ export default function SettingsModal({
           </button>
         </div>
 
-        <div className="modal-body">
-          <section className="settings-group">
-            <h3>{t('settings.language.title')}</h3>
-            <div className="lang-row">
+        <div className="modal-body settings-list">
+          <SettingRow label={t('settings.language.title')}>
+            <select
+              className="lang-select"
+              aria-label={t('settings.language.title')}
+              value={settings.language}
+              onChange={(e) => onChange('language', e.target.value as Language)}
+            >
               {LANGUAGES.map((l) => (
-                <button
-                  key={l.id}
-                  className={`lang-chip ${settings.language === l.id ? 'on' : ''}`}
-                  onClick={() => onChange('language', l.id)}
-                >
+                <option key={l.id} value={l.id}>
                   {l.label}
-                </button>
+                </option>
               ))}
-            </div>
-          </section>
+            </select>
+          </SettingRow>
 
-          <section className="settings-group">
-            <h3>{t('settings.theme')}</h3>
+          <SettingBlock label={t('settings.theme')}>
             <div className="theme-grid">
               {THEMES.map((tm) => (
                 <button
@@ -210,8 +255,9 @@ export default function SettingsModal({
                 </button>
               ))}
             </div>
+          </SettingBlock>
 
-            <h3 className="mt">{t('settings.accent')}</h3>
+          <SettingBlock label={t('settings.accent')}>
             <div className="accent-row">
               {ACCENTS.map((a) => (
                 <button
@@ -223,11 +269,9 @@ export default function SettingsModal({
                 />
               ))}
             </div>
-          </section>
+          </SettingBlock>
 
-          <section className="settings-group">
-            <h3>{t('settings.storage.title')}</h3>
-            <p className="settings-desc">{t('settings.storage.desc')}</p>
+          <SettingBlock label={t('settings.storage.title')} desc={t('settings.storage.desc')}>
             <div className="storage-path" title={storageDir}>
               <IconFolder size={14} />
               <span>{storageDir || t('common.loading')}</span>
@@ -240,59 +284,37 @@ export default function SettingsModal({
                 {t('settings.storage.open')}
               </button>
             </div>
-          </section>
+          </SettingBlock>
 
-          <section className="settings-group">
-            <h3>{t('settings.backup.title')}</h3>
-            <p className="settings-desc">{t('settings.backup.desc')}</p>
-            <div className="storage-actions">
-              <button className="btn-ghost" onClick={onExportBackup}>
-                {t('settings.backup.export')}
-              </button>
-            </div>
-          </section>
+          <SettingRow label={t('settings.backup.title')} desc={t('settings.backup.desc')}>
+            <button className="btn-ghost" onClick={onExportBackup}>
+              {t('settings.backup.export')}
+            </button>
+          </SettingRow>
 
-          <section className="settings-group">
-            <h3>{t('settings.combine.title')}</h3>
-            <div className="setting-row">
-              <div className="setting-label">
-                {t('settings.combine.integrated')}
-                <small>{t('settings.combine.desc')}</small>
-              </div>
-              <div className="setting-control">
-                <button
-                  className={`toggle ${settings.combineGraphs ? 'on' : ''}`}
-                  role="switch"
-                  aria-checked={settings.combineGraphs}
-                  title={t('settings.combine.title')}
-                  onClick={() => onChange('combineGraphs', !settings.combineGraphs)}
-                >
-                  <span className="toggle-knob" />
-                </button>
-              </div>
-            </div>
-          </section>
+          <SettingRow label={t('settings.combine.title')} desc={t('settings.combine.desc')}>
+            <button
+              className={`toggle ${settings.combineGraphs ? 'on' : ''}`}
+              role="switch"
+              aria-checked={settings.combineGraphs}
+              title={t('settings.combine.title')}
+              onClick={() => onChange('combineGraphs', !settings.combineGraphs)}
+            >
+              <span className="toggle-knob" />
+            </button>
+          </SettingRow>
 
-          <section className="settings-group">
-            <h3>{t('settings.graph.title')}</h3>
-            <div className="setting-row">
-              <div className="setting-label">
-                {t('settings.graph.count')}
-                <small>{t('settings.graph.countHint')}</small>
-              </div>
-              <div className="setting-control">
-                <input
-                  type="range"
-                  min={1}
-                  max={48}
-                  step={1}
-                  value={settings.maxSearchResults}
-                  onChange={(e) => onChange('maxSearchResults', Number(e.target.value))}
-                />
-                <span className="setting-value">{settings.maxSearchResults}</span>
-              </div>
-            </div>
-          </section>
+          <SettingRow label={t('settings.graph.count')} desc={t('settings.graph.countHint')}>
+            <input
+              type="range"
+              min={1}
+              max={48}
+              step={1}
+              value={settings.maxSearchResults}
+              onChange={(e) => onChange('maxSearchResults', Number(e.target.value))}
+            />
+            <span className="setting-value">{settings.maxSearchResults}</span>
+          </SettingRow>
 
           <GitHubSection />
 

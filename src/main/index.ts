@@ -455,50 +455,43 @@ function registerIpc(): void {
   // ----- 피벗 / 연결 -----
   ipcMain.handle('pivots:list', () => pivotStore.list())
   ipcMain.handle('pivots:create', (_e, name: string) => pivotStore.create(name))
+  // 변이 핸들러는 결과를 돌려주지 않는다: 렌더러가 반환값을 버리고 refresh()로 다시 읽으므로
+  // 핸들러마다 JOIN 무거운 list()를 재조회하던 건 낭비였다.
   ipcMain.handle('pivots:rename', (_e, id: string, name: string) => {
     pivotStore.rename(id, name)
-    return pivotStore.list()
   })
   // 피벗 삭제 = 휴지통으로(소프트 삭제). 링크는 보존(복원 시 재연결).
   ipcMain.handle('pivots:remove', (_e, id: string) => {
     pivotStore.softDelete(id)
-    return pivotStore.list()
   })
   // 피벗 + 하위 전체 삭제(고아 파일만 함께 휴지통으로).
   ipcMain.handle('pivots:removeCascade', (_e, id: string) => {
     removePivotCascade(id)
-    return pivotStore.list()
   })
   ipcMain.handle('links:list', () => linkStore.list())
   ipcMain.handle('links:add', (_e, pivotId: string, itemId: string) => {
     linkStore.add(pivotId, itemId)
-    return linkStore.list()
   })
   ipcMain.handle('links:remove', (_e, pivotId: string, itemId: string) => {
     linkStore.remove(pivotId, itemId)
-    return linkStore.list()
   })
 
   // ----- 파일 ↔ 파일 연결 -----
   ipcMain.handle('itemLinks:list', () => itemLinkStore.list())
   ipcMain.handle('itemLinks:add', (_e, a: string, b: string) => {
     itemLinkStore.add(a, b)
-    return itemLinkStore.list()
   })
   ipcMain.handle('itemLinks:remove', (_e, a: string, b: string) => {
     itemLinkStore.remove(a, b)
-    return itemLinkStore.list()
   })
 
   // ----- 피벗 ↔ 피벗 연결 -----
   ipcMain.handle('pivotLinks:list', () => pivotLinkStore.list())
   ipcMain.handle('pivotLinks:add', (_e, a: string, b: string) => {
     pivotLinkStore.add(a, b)
-    return pivotLinkStore.list()
   })
   ipcMain.handle('pivotLinks:remove', (_e, a: string, b: string) => {
     pivotLinkStore.remove(a, b)
-    return pivotLinkStore.list()
   })
 
   // 미리보기로 읽을 최대 파일 크기(이보다 크면 미리보기하지 않는다)

@@ -145,11 +145,13 @@ export default function GraphView(props: Props) {
     pivots,
     items,
     paletteRef,
+    palette,
     spawnRef: interactions.spawnRef,
     nodesRef: interactions.nodesRef,
     focusRef: interactions.focusRef,
     nodeClickRef: interactions.nodeClickRef,
     linkingRef: interactions.linkingRef,
+    wakeRef: interactions.wakeRef,
     setSearch: interactions.setSearch,
     setQuery: interactions.setQuery,
     setMenu: interactions.setMenu,
@@ -180,7 +182,16 @@ export default function GraphView(props: Props) {
         </div>
       )}
 
-      <div className="graph-legend">{t('graph.legend')}</div>
+      <div className="graph-legend">
+        <span className="legend-key">
+          <span className="dot" style={{ background: palette.pivot }} />
+          {t('graph.keyPivot')}
+        </span>
+        <span className="legend-key">
+          <span className="dot" style={{ background: palette.file }} />
+          {t('graph.keyFile')}
+        </span>
+      </div>
     </div>
   )
 }

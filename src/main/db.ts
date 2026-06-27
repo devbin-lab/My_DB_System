@@ -127,6 +127,16 @@ export function initDb(): void {
     )
   if (!hasColumn('items', 'deleted_at')) db.exec('ALTER TABLE items ADD COLUMN deleted_at TEXT')
   if (!hasColumn('pivots', 'deleted_at')) db.exec('ALTER TABLE pivots ADD COLUMN deleted_at TEXT')
+
+  // 핫 경로 인덱스: 링크/페어 테이블의 두 번째 컬럼(복합 PK 인덱스가 못 커버) + soft-delete 필터용.
+  // 그래프 list()/JOIN과 removeId/cascade가 매번 풀스캔하던 것을 인덱스 조회로 바꾼다. 멱등.
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_links_item ON links(item_id);
+    CREATE INDEX IF NOT EXISTS idx_item_links_b ON item_links(b_id);
+    CREATE INDEX IF NOT EXISTS idx_pivot_links_b ON pivot_links(b_id);
+    CREATE INDEX IF NOT EXISTS idx_items_deleted ON items(deleted_at);
+    CREATE INDEX IF NOT EXISTS idx_pivots_deleted ON pivots(deleted_at);
+  `)
 }
 
 export interface Pivot {
@@ -262,7 +272,7 @@ export const pivotLinkStore = makePairStore('pivot_links', 'pivots', true)
 const DEFAULT_SETTINGS = {
   maxSearchResults: 12, // 그래프 우클릭 검색에서 표시할 최대 결과 수
   theme: 'slate', // slate | light | navy
-  accent: 'teal', // violet | teal | blue | amber | green
+  accent: 'teal', // 기본 액센트(설정에서 10색 팔레트 중 선택 — AccentId 참고)
   language: 'en', // ko | en | ja (실제 기본값은 systemLanguage로 대체된다)
   combineGraphs: false // 그래프 뷰 + GitHub 뷰를 한 화면에 통합할지
 }

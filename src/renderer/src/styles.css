@@ -21,11 +21,14 @@
   --glass: rgba(33, 36, 47, 0.97);
   --glass-soft: rgba(33, 36, 47, 0.82);
   --overlay: rgba(15, 17, 23, 0.65);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  /* 2단 그림자(접촉선 + 확산)로 떠 있는 느낌을 또렷하게 — pro 앱 수준의 깊이감 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.36);
+  --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.35), 0 18px 48px rgba(0, 0, 0, 0.52);
   --accent: #14b8a6;
   --accent-hover: #2dd4bf;
   --accent-soft: rgba(20, 184, 166, 0.15);
+  --accent-fg: #fff; /* 액센트 위 글자/아이콘 색. 블랙 액센트에서만 테마별로 반전된다. */
   --danger: #ff6b6b;
   --r-sm: 8px;
   --r-md: 12px;
@@ -47,8 +50,9 @@
   --glass: rgba(255, 255, 255, 0.97);
   --glass-soft: rgba(255, 255, 255, 0.85);
   --overlay: rgba(228, 231, 238, 0.65);
-  --shadow-lg: 0 16px 48px rgba(25, 32, 56, 0.18);
-  --shadow-md: 0 8px 24px rgba(25, 32, 56, 0.12);
+  --shadow-sm: 0 1px 2px rgba(25, 32, 56, 0.08), 0 1px 3px rgba(25, 32, 56, 0.06);
+  --shadow-md: 0 1px 2px rgba(25, 32, 56, 0.08), 0 8px 24px rgba(25, 32, 56, 0.14);
+  --shadow-lg: 0 2px 6px rgba(25, 32, 56, 0.1), 0 18px 48px rgba(25, 32, 56, 0.2);
 }
 
 :root[data-theme='navy'] {
@@ -63,13 +67,16 @@
   --glass: rgba(22, 32, 47, 0.97);
   --glass-soft: rgba(22, 32, 47, 0.82);
   --overlay: rgba(8, 13, 22, 0.65);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.42);
+  --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.4), 0 18px 48px rgba(0, 0, 0, 0.6);
 }
 
 /* ---------- 액센트 ---------- */
 :root[data-accent='violet'] {
-  --accent: #7c6af2;
-  --accent-hover: #8d7cf7;
-  --accent-soft: rgba(124, 106, 242, 0.15);
+  --accent: #8b5cf6;
+  --accent-hover: #a78bfa;
+  --accent-soft: rgba(139, 92, 246, 0.15);
 }
 
 :root[data-accent='teal'] {
@@ -96,6 +103,62 @@
   --accent-soft: rgba(34, 197, 94, 0.15);
 }
 
+:root[data-accent='rose'] {
+  --accent: #f43f5e;
+  --accent-hover: #fb7185;
+  --accent-soft: rgba(244, 63, 94, 0.15);
+}
+
+:root[data-accent='orange'] {
+  --accent: #f97316;
+  --accent-hover: #fb923c;
+  --accent-soft: rgba(249, 115, 22, 0.16);
+}
+
+:root[data-accent='lime'] {
+  --accent: #84cc16;
+  --accent-hover: #a3e635;
+  --accent-soft: rgba(132, 204, 22, 0.16);
+}
+
+:root[data-accent='cyan'] {
+  --accent: #06b6d4;
+  --accent-hover: #22d3ee;
+  --accent-soft: rgba(6, 182, 212, 0.15);
+}
+
+:root[data-accent='fuchsia'] {
+  --accent: #d946ef;
+  --accent-hover: #e879f9;
+  --accent-soft: rgba(217, 70, 239, 0.15);
+}
+
+/* 중립색: 회색 — 테마에 따라 명도만 살짝 조정해 대비 확보 */
+:root[data-accent='gray'] {
+  --accent: #9aa1b5;
+  --accent-hover: #c4cad8;
+  --accent-soft: rgba(154, 161, 181, 0.16);
+}
+:root[data-theme='light'][data-accent='gray'] {
+  --accent: #64748b;
+  --accent-hover: #475569;
+  --accent-soft: rgba(100, 116, 139, 0.12);
+}
+
+/* 블랙: 다크 테마에선 흰색, 라이트 테마에선 검정으로 반전. 액센트 위 글자색도 함께 반전. */
+:root[data-accent='black'] {
+  --accent: #f0f0f3;
+  --accent-hover: #ffffff;
+  --accent-soft: rgba(255, 255, 255, 0.13);
+  --accent-fg: #1b1e27;
+}
+:root[data-theme='light'][data-accent='black'] {
+  --accent: #1d2230;
+  --accent-hover: #000000;
+  --accent-soft: rgba(0, 0, 0, 0.1);
+  --accent-fg: #fff;
+}
+
 html,
 body,
 #root {
@@ -109,6 +172,25 @@ body {
   overflow: hidden;
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
+}
+
+/* 한국어: 어절(공백) 단위로만 줄바꿈해 단어 중간이 끊기지 않게 한다.
+   word-break는 상속되므로 :root에 깔면 전역 기본값이 된다(경로·코드처럼 break-all을
+   명시한 요소는 그대로 우선). html lang은 App에서 선택 언어로 갱신하므로 한국어에서만 적용되고,
+   공백이 없는 일본어는 제외되어(=anywhere 줄바꿈 유지) 넘침이 생기지 않는다. */
+:root:lang(ko) {
+  word-break: keep-all;
+}
+
+/* 키보드 포커스 링: 마우스 클릭 시엔 안 보이고 키보드 탐색 시에만 표시(접근성·완성도).
+   outline은 box-shadow와 충돌하지 않고 레이아웃에도 영향이 없다. */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 button {
@@ -238,7 +320,7 @@ button {
   gap: 6px;
   background: var(--accent);
   border: none;
-  color: #fff;
+  color: var(--accent-fg);
   font-size: 13px;
   font-weight: 600;
   padding: 8px 14px;
@@ -346,6 +428,9 @@ button {
   position: absolute;
   bottom: 14px;
   right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
   font-size: 11px;
   color: var(--text-dim);
   background: var(--glass-soft);
@@ -354,6 +439,18 @@ button {
   border-radius: 20px;
   pointer-events: none;
   backdrop-filter: blur(8px);
+}
+
+/* 범례 색상키: 노드 색이 무엇을 뜻하는지(피벗/파일) */
+.legend-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.legend-key .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
 }
 
 /* 공용 컬러닷 */
@@ -823,7 +920,7 @@ button {
 .node-menu-rename button {
   background: var(--accent);
   border: none;
-  color: #fff;
+  color: var(--accent-fg);
   border-radius: 7px;
   padding: 0 12px;
   font-size: 12px;
@@ -1037,7 +1134,7 @@ button {
 
 .lib-card.selected {
   background: var(--accent-soft);
-  border-color: rgba(124, 106, 242, 0.4);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .ext-badge {
@@ -1048,7 +1145,7 @@ button {
   height: 34px;
   border-radius: 8px;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.4px;
   flex-shrink: 0;
 }
@@ -1493,7 +1590,7 @@ button {
 }
 
 .modal {
-  width: 520px;
+  width: 560px;
   max-width: calc(100vw - 48px);
   max-height: calc(100vh - 80px);
   background: var(--bg-elev);
@@ -1524,16 +1621,101 @@ button {
 }
 
 .modal-head h2 {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 600;
 }
 
 .modal-body {
-  padding: 4px 20px 20px;
+  padding: 4px 24px 16px;
   overflow-y: auto;
+}
+
+/* ---------- 설정 모달: 플랫 리스트(Claude 데스크톱 스타일) ---------- */
+/* 카드 박스를 없애고, 각 항목을 '라벨+설명(왼쪽) / 컨트롤(오른쪽)' 행으로.
+   행 사이는 얇은 구분선 + 여백으로만 분리 → 박스 벽 느낌 제거, 넉넉하고 평평하게. */
+.set-row,
+.set-block {
+  padding: 16px 2px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.settings-list > .set-row:last-child,
+.settings-list > .set-block:last-child {
+  border-bottom: none;
+}
+.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.set-block {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 13px;
+}
+.set-row-text {
+  min-width: 0;
+}
+.set-row-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* 설명이 있는 제목: 마우스를 올리면 설명 툴팁. 점선 밑줄로 '호버하면 설명' 힌트를 준다. */
+.set-row-label.has-tip {
+  position: relative;
+  width: fit-content;
+  cursor: help;
+}
+.set-tip {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  z-index: 30;
+  width: max-content;
+  max-width: 270px;
+  padding: 8px 11px;
+  border-radius: var(--r-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  color: var(--text-dim);
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.55;
+  text-align: left;
+  text-decoration: none;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease,
+    visibility 0.14s;
+}
+.set-row-label.has-tip:hover .set-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.set-row-desc {
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+.set-row-control {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.set-row-control input[type='range'] {
+  width: 150px;
+  accent-color: var(--accent);
 }
 
 .settings-group {
@@ -1558,6 +1740,71 @@ button {
   margin-bottom: 12px;
 }
 
+/* 설정 제목 옆 '?' 도움말 아이콘 + 호버/포커스 툴팁 (설명을 평소엔 숨겨 미니멀하게) */
+.help-hint {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 7px;
+  vertical-align: middle;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  cursor: help;
+  user-select: none;
+  transition: color 0.12s, border-color 0.12s;
+}
+
+.help-hint:hover,
+.help-hint:focus-visible {
+  color: var(--text);
+  border-color: var(--text-dim);
+  outline: none;
+}
+
+.help-tip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  width: max-content;
+  max-width: 230px;
+  padding: 8px 11px;
+  border-radius: var(--r-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease,
+    visibility 0.14s;
+}
+
+.help-hint:hover .help-tip,
+.help-hint:focus-visible .help-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
 .setting-row {
   display: flex;
   align-items: center;
@@ -1567,6 +1814,7 @@ button {
 
 .setting-label {
   font-size: 13.5px;
+  min-width: 0;
 }
 
 .setting-label small {
@@ -1662,10 +1910,12 @@ button {
 
 .accent-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
 .accent-chip {
+  position: relative;
   width: 30px;
   height: 30px;
   border-radius: 50%;
@@ -1683,34 +1933,90 @@ button {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-/* ---------- 언어 선택 ---------- */
-/* 설정 모달: 가로 칩 */
-.lang-row {
+/* 선택된 액센트에 체크 표시 — 테두리만으로는 앰버/그린이 라이트 테마에서 잘 안 보인다 */
+.accent-chip.on::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
-.lang-chip {
-  flex: 1 1 0;
-  min-width: 90px;
-  background: var(--bg);
-  border: 1.5px solid var(--border-soft);
-  border-radius: var(--r-md);
-  padding: 10px 14px;
-  cursor: pointer;
-  color: var(--text);
-  font-size: 13px;
+/* ---------- 언어 선택 ---------- */
+/* 설정 모달: 드롭다운 */
+.lang-select-wrap {
+  position: relative;
+  max-width: 260px;
+  margin-left: auto;
+}
+
+/* 커스텀 셰브론 (네이티브 화살표는 appearance:none 으로 제거) */
+.lang-select-wrap::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 9px;
+  height: 9px;
+  margin-top: -3px;
+  border-right: 1.5px solid var(--text-dim);
+  border-bottom: 1.5px solid var(--text-dim);
+  transform: rotate(45deg);
+  pointer-events: none;
   transition: border-color 0.12s;
 }
 
-.lang-chip:hover {
+.lang-select {
+  width: auto;
+  min-width: 150px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: var(--bg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa1b5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.4;
+  padding: 10px 38px 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s;
+  /* 팝업 옵션 목록을 현재 테마에 맞춘다 (기본은 다크: slate/navy) */
+  color-scheme: dark;
+}
+
+.lang-select:hover {
   border-color: var(--text-dim);
 }
 
-.lang-chip.on {
+.lang-select:focus-visible {
+  outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.lang-select-wrap:hover::after {
+  border-color: var(--text);
+}
+
+/* 라이트 테마: 드롭다운 팝업도 라이트로 */
+:root[data-theme='light'] .lang-select {
+  color-scheme: light;
+}
+
+/* 옵션 항목 (Windows/Chromium 에서 적용됨) */
+.lang-select option {
+  background: var(--bg-elev);
+  color: var(--text);
 }
 
 /* 온보딩: 더 큰 카드 그리드 */
@@ -1764,6 +2070,7 @@ button {
 
 .storage-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 8px;
   margin-top: 10px;
 }
@@ -1887,7 +2194,7 @@ button {
 .onboard-step.on .onboard-dot {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
 }
 
 .onboard-step.done .onboard-dot {
@@ -1914,9 +2221,19 @@ button {
 }
 
 .onboard-pane h3 {
-  font-size: 13px;
-  color: var(--text-dim);
-  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+/* 온보딩 그래프 단계: 설정과 같은 라벨/컨트롤 스타일의 단일 행(구분선 없이) */
+.onboard-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 6px;
 }
 
 .onboard-pane h3.mt {
@@ -2294,6 +2611,10 @@ button {
     background 0.15s ease,
     border-color 0.15s ease;
 }
+.toggle:hover {
+  border-color: var(--text-dim);
+}
+
 .toggle.on {
   background: var(--accent);
   border-color: var(--accent);
@@ -2311,4 +2632,5 @@ button {
 }
 .toggle.on .toggle-knob {
   transform: translateX(18px);
+  background: var(--accent-fg);
 }

@@ -55,6 +55,7 @@ export interface GraphInteractions {
   focusRef: { current: ((id: string) => void) | null }
   nodeClickRef: { current: (n: NodeClickArg) => void }
   linkingRef: { current: LinkSource | null }
+  wakeRef: { current: (() => void) | null }
   setSearch: (s: { x: number; y: number } | null) => void
   setQuery: (v: string) => void
   setMenu: (m: { x: number; y: number; node: GNode } | null) => void
@@ -95,6 +96,8 @@ export function useGraphInteractions(params: GraphInteractionParams): GraphInter
   const t = useT()
   const focusRef = useRef<((id: string) => void) | null>(null)
   const nodeClickRef = useRef<(n: NodeClickArg) => void>(() => {})
+  // useGraphSimulation이 채우는 wake 핸들. 정착해 멈춘 루프를 다시 깨울 때 쓴다.
+  const wakeRef = useRef<(() => void) | null>(null)
 
   // ---------- 우클릭 검색/피벗 생성 오버레이 ----------
   const [search, setSearch] = useState<{ x: number; y: number } | null>(null)
@@ -149,6 +152,8 @@ export function useGraphInteractions(params: GraphInteractionParams): GraphInter
     if (save && nameText.trim()) onRenamePivot(naming.pivotId, nameText.trim())
     const node = nodesRef.current.find((n) => n.id === `pivot:${naming.pivotId}`)
     if (node) node.fixed = false
+    // 멈춰 있던 루프를 깨워 고정 해제된 새 피벗이 제자리(섹터 목표)로 정착하게 한다.
+    wakeRef.current?.()
     spawnRef.current = null
     setNaming(null)
   }
@@ -380,6 +385,7 @@ export function useGraphInteractions(params: GraphInteractionParams): GraphInter
     focusRef,
     nodeClickRef,
     linkingRef,
+    wakeRef,
     setSearch,
     setQuery,
     setMenu: guardedSetMenu,

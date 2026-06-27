@@ -86,11 +86,11 @@ export const ja: Dict = {
   'onboard.appearance.accent': 'アクセントカラー',
   'onboard.storage.title': 'データの保存場所',
   'onboard.storage.desc':
-    '追加したすべてのファイルはこのフォルダにコピーされて保管されます。クラウド同期フォルダ（例：Dropbox）を選んでも構いません。後で移動するとデータも一緒に移動します。',
+    '追加したファイルはすべてこのフォルダに保管されます。クラウド同期フォルダ（例：Dropbox）でも構いません。後で移動するとデータも一緒に移動します。',
   'onboard.storage.change': 'フォルダを変更',
   'onboard.graph.title': 'グラフ検索の表示数',
   'onboard.graph.desc':
-    'グラフ画面で右クリック検索したときに一度に表示する結果数です。12件ごとに外側の時計リングが1つずつ増えます。',
+    'グラフで右クリック検索したときに一度に表示する結果数です。12件ごとに外側の時計リングが1つずつ増えます。',
   'onboard.graph.count': '表示する結果数',
   'onboard.start': '始める',
 
@@ -101,12 +101,12 @@ export const ja: Dict = {
   'settings.accent': 'アクセントカラー',
   'settings.storage.title': 'ストレージ',
   'settings.storage.desc':
-    '追加したすべてのファイルはこのフォルダにコピーされて保管されます。場所を変更すると既存のデータも一緒に移動します。',
+    '追加したファイルはすべてこのフォルダに保管されます。場所を変えると既存のデータも一緒に移動します。',
   'settings.storage.change': 'フォルダを変更',
   'settings.storage.open': 'エクスプローラーで開く',
   'settings.backup.title': 'バックアップ',
   'settings.backup.desc':
-    'ストレージ全体（ファイル・DB）を別フォルダに書き出すか、バックアップフォルダを読み込みます。取り込むと現在のデータは元の場所に残り、バックアップフォルダへ切り替わります。',
+    'ストレージ全体（ファイル・DB）を、選んだフォルダ内のタイムスタンプ付きバックアップフォルダにコピーします。',
   'settings.backup.export': 'バックアップを書き出す',
   'settings.github.title': 'GitHub連携',
   'settings.github.desc': 'Gitタブで使うGitHubアカウント連携を管理します。',
@@ -115,7 +115,7 @@ export const ja: Dict = {
   'settings.github.notConnected': '未接続',
   'settings.github.disconnect': '接続解除',
   'settings.combine.title': 'グラフ統合表示',
-  'settings.combine.desc': 'ローカルグラフとGitHubリポジトリを1画面に表示するか、タブで分けるか選びます。',
+  'settings.combine.desc': 'ローカルグラフとGitHubリポジトリを1画面で見るか、タブで分けるかを選びます。',
   'settings.combine.integrated': '統合（1画面）',
   'combine.legend': 'ファイルをクリック=プレビュー · ピボット/repoをクリック=中を見る · 中央=GitHubアカウント',
   'combine.legendPivot': 'ファイルをクリック=プレビュー · ピボットをクリック=下位へ · 左上の←で戻る',
@@ -151,6 +151,13 @@ export const ja: Dict = {
   'accent.violet': 'バイオレット',
   'accent.amber': 'アンバー',
   'accent.green': 'グリーン',
+  'accent.rose': 'ローズ',
+  'accent.orange': 'オレンジ',
+  'accent.lime': 'ライム',
+  'accent.cyan': 'シアン',
+  'accent.fuchsia': 'フューシャ',
+  'accent.gray': 'グレー',
+  'accent.black': 'ブラック',
 
   // ビューア
   'viewer.openExternal': '外部で開く',
@@ -184,5 +191,7 @@ export const ja: Dict = {
   'graph.empty': '何もありません。',
   'graph.emptyHint': '空いている場所を右クリックしてピボットを作成するか、ファイルを追加してください。',
   'graph.legend':
-    'クリック=開く/ピボット移動 · 右クリック(空白)=検索・ピボット作成 · 右クリック(ノード)=メニュー'
+    'クリック=開く/ピボット移動 · 右クリック(空白)=検索・ピボット作成 · 右クリック(ノード)=メニュー',
+  'graph.keyPivot': 'ピボット',
+  'graph.keyFile': 'ファイル'
 }

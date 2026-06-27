@@ -35,9 +35,16 @@ export interface GraphPalette {
 const ACCENT_HEX: Record<Settings['accent'], string> = {
   teal: '#2dd4bf',
   blue: '#60a5fa',
-  violet: '#8d7cf7',
+  violet: '#a78bfa',
   amber: '#fbbf24',
-  green: '#4ade80'
+  green: '#4ade80',
+  rose: '#fb7185',
+  orange: '#fb923c',
+  lime: '#a3e635',
+  cyan: '#22d3ee',
+  fuchsia: '#e879f9',
+  gray: '#9aa1b5',
+  black: '#f0f0f3'
 }
 
 const GRAPH_PALETTES: Record<Settings['theme'], Omit<GraphPalette, 'accent'>> = {
@@ -135,21 +142,34 @@ export default function App() {
     setSettings(await window.api.setSetting(key, value))
   }
 
-  // 테마/액센트를 CSS 변수로 적용
+  // 테마/액센트를 CSS 변수로 적용. 선택 언어는 html lang에 반영한다
+  // (접근성·폰트 + 한국어 줄바꿈 규칙 :lang(ko)에 사용. index.html의 하드코딩 ko를 덮어쓴다).
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme
     document.documentElement.dataset.accent = settings.accent
-  }, [settings.theme, settings.accent])
+    document.documentElement.lang = settings.language
+  }, [settings.theme, settings.accent, settings.language])
 
   // 통합 모드를 켜면 Git 탭이 사라지므로, 그 상태로 남지 않게 그래프로 되돌린다.
   useEffect(() => {
     if (settings.combineGraphs && view === 'git') setView('graph')
   }, [settings.combineGraphs, view])
 
-  const palette = useMemo(
-    () => ({ ...GRAPH_PALETTES[settings.theme], accent: ACCENT_HEX[settings.accent] }),
-    [settings.theme, settings.accent]
-  )
+  const palette = useMemo(() => {
+    const isLight = settings.theme === 'light'
+    // 블랙/그레이는 테마에 따라 반전·조정(다크 그래프에선 밝게, 라이트에선 어둡게)
+    const accentHex =
+      settings.accent === 'black'
+        ? isLight
+          ? '#1d2230'
+          : '#f0f0f3'
+        : settings.accent === 'gray'
+          ? isLight
+            ? '#64748b'
+            : '#9aa1b5'
+          : ACCENT_HEX[settings.accent]
+    return { ...GRAPH_PALETTES[settings.theme], accent: accentHex }
+  }, [settings.theme, settings.accent])
 
   const changeStorage = async () => {
     const chosen = await window.api.chooseStorageDir()
@@ -202,7 +222,15 @@ export default function App() {
     return sorted
   }, [items, search, typeFilter, sortBy])
 
-  const selected = items.find((i) => i.id === selectedId) ?? null
+  // 타이핑 등 잦은 렌더에서 매번 전체 items를 스캔하지 않도록 메모이즈
+  const selected = useMemo(
+    () => items.find((i) => i.id === selectedId) ?? null,
+    [items, selectedId]
+  )
+  const previewItem = useMemo(
+    () => (previewId ? (items.find((i) => i.id === previewId) ?? null) : null),
+    [items, previewId]
+  )
 
   // 그래프에서 피벗 집중 보기 중이면, 추가하는 파일을 그 피벗에 연결한다
   const importPivotId = view === 'graph' ? activePivotId : null
@@ -364,23 +392,18 @@ export default function App() {
                 onDisconnectPivots={disconnectPivots}
               />
             )}
-            {previewId &&
-              (() => {
-                const item = items.find((i) => i.id === previewId)
-                if (!item) return null
-                return (
-                  <PreviewPanel
-                    item={item}
-                    allTags={allTags}
-                    onOpenInList={() => {
-                      setSelectedId(item.id)
-                      setView('library')
-                      setPreviewId(null)
-                    }}
-                    onClose={() => setPreviewId(null)}
-                  />
-                )
-              })()}
+            {previewItem && (
+              <PreviewPanel
+                item={previewItem}
+                allTags={allTags}
+                onOpenInList={() => {
+                  setSelectedId(previewItem.id)
+                  setView('library')
+                  setPreviewId(null)
+                }}
+                onClose={() => setPreviewId(null)}
+              />
+            )}
           </section>
         ) : view === 'git' ? (
           <section className="git-view">

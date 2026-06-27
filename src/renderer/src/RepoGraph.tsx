@@ -129,6 +129,7 @@ export default function RepoGraph({ palette }: Props) {
   const nodesRef = useRef<GNode[]>([])
   const focusRef = useRef<((id: string) => void) | null>(null)
   const linkingRef = useRef<LinkSource | null>(null)
+  const wakeRef = useRef<(() => void) | null>(null)
   const nodeClickRef = useRef<(n: { refId: string; kind: 'pivot' | 'item'; label: string }) => void>(
     () => {}
   )
@@ -168,11 +169,13 @@ export default function RepoGraph({ palette }: Props) {
     pivots: graph.pivots,
     items: graph.items,
     paletteRef,
+    palette,
     spawnRef,
     nodesRef,
     focusRef,
     nodeClickRef,
     linkingRef,
+    wakeRef,
     setSearch: noop,
     setQuery: noop,
     setMenu: noop,

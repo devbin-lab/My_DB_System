@@ -87,11 +87,11 @@ export const en: Dict = {
   'onboard.appearance.accent': 'Accent color',
   'onboard.storage.title': 'Data storage location',
   'onboard.storage.desc':
-    'Every file you add is copied into this folder. You can pick a cloud-synced folder (e.g. Dropbox). If you move it later, your data moves with it.',
+    'All files you add are kept in this folder. A cloud-synced folder (e.g. Dropbox) works too. If you move it later, your data moves with it.',
   'onboard.storage.change': 'Change folder',
   'onboard.graph.title': 'Graph search count',
   'onboard.graph.desc':
-    'How many results to show at once when right-click searching in the graph. A new outer clock ring is added every 12 results.',
+    'How many results to show at once when you right-click to search in the graph. A new outer clock ring is added every 12 results.',
   'onboard.graph.count': 'Results to display',
   'onboard.start': 'Get started',
 
@@ -102,12 +102,12 @@ export const en: Dict = {
   'settings.accent': 'Accent color',
   'settings.storage.title': 'Storage',
   'settings.storage.desc':
-    'Every file you add is copied into this folder. Changing the location moves your existing data too.',
+    'All files you add are kept in this folder. Changing the location moves your existing data with it.',
   'settings.storage.change': 'Change folder',
   'settings.storage.open': 'Open in file explorer',
   'settings.backup.title': 'Backup',
   'settings.backup.desc':
-    'Export the whole storage (files and database) to another folder, or load a backup folder. Importing keeps your current data in place and switches to the backup folder.',
+    'Copies your whole storage (files and database) into a timestamped backup folder inside the folder you choose.',
   'settings.backup.export': 'Export backup',
   'settings.github.title': 'GitHub',
   'settings.github.desc': 'Manage the GitHub account used in the Git tab.',
@@ -116,7 +116,7 @@ export const en: Dict = {
   'settings.github.notConnected': 'Not connected',
   'settings.github.disconnect': 'Disconnect',
   'settings.combine.title': 'Combined graph',
-  'settings.combine.desc': 'Show the local graph and your GitHub repos together, or split into separate tabs.',
+  'settings.combine.desc': 'Show the local graph and your GitHub repos in one view, or split them into tabs.',
   'settings.combine.integrated': 'Integrated (one view)',
   'combine.legend': 'Click a file=preview · Click a pivot/repo=drill in · Center=GitHub account',
   'combine.legendPivot': 'Click a file=preview · Click a pivot=drill in · ← top-left to go back',
@@ -152,6 +152,13 @@ export const en: Dict = {
   'accent.violet': 'Violet',
   'accent.amber': 'Amber',
   'accent.green': 'Green',
+  'accent.rose': 'Rose',
+  'accent.orange': 'Orange',
+  'accent.lime': 'Lime',
+  'accent.cyan': 'Cyan',
+  'accent.fuchsia': 'Fuchsia',
+  'accent.gray': 'Gray',
+  'accent.black': 'Black',
 
   // viewer
   'viewer.openExternal': 'Open externally',
@@ -185,5 +192,7 @@ export const en: Dict = {
   'graph.empty': 'Nothing here yet.',
   'graph.emptyHint': 'Right-click empty space to create a pivot, or add files.',
   'graph.legend':
-    'Click = open/enter pivot · Right-click (empty) = search/new pivot · Right-click (node) = menu'
+    'Click = open/enter pivot · Right-click (empty) = search/new pivot · Right-click (node) = menu',
+  'graph.keyPivot': 'Pivot',
+  'graph.keyFile': 'File'
 }

@@ -224,11 +224,13 @@ export default function CombinedGraph(props: Props) {
     pivots: graph.pivots,
     items: graph.items,
     paletteRef,
+    palette,
     spawnRef: interactions.spawnRef,
     nodesRef: interactions.nodesRef,
     focusRef: interactions.focusRef,
     nodeClickRef: interactions.nodeClickRef,
     linkingRef: interactions.linkingRef,
+    wakeRef: interactions.wakeRef,
     setSearch: interactions.setSearch,
     setQuery: interactions.setQuery,
     setMenu: interactions.setMenu,
@@ -269,11 +271,22 @@ export default function CombinedGraph(props: Props) {
       {interactions.overlays}
 
       <div className="graph-legend">
-        {focus?.kind === 'repo'
-          ? t('gh.legendRepo')
-          : focus?.kind === 'pivot'
-            ? t('combine.legendPivot')
-            : t('combine.legend')}
+        {focus?.kind === 'repo' ? (
+          t('gh.legendRepo')
+        ) : focus?.kind === 'pivot' ? (
+          t('combine.legendPivot')
+        ) : (
+          <>
+            <span className="legend-key">
+              <span className="dot" style={{ background: palette.pivot }} />
+              {t('graph.keyPivot')}
+            </span>
+            <span className="legend-key">
+              <span className="dot" style={{ background: palette.file }} />
+              {t('graph.keyFile')}
+            </span>
+          </>
+        )}
       </div>
     </div>
   )

@@ -33,6 +33,8 @@ interface SimulationParams {
   rootMinSubtree?: number
   pivots: Pivot[]
   items: LibraryItem[]
+  // 팔레트 값: 테마/액센트 변경 감지용 → 안정화로 멈춘 루프를 깨워 새 색으로 다시 그린다.
+  palette: GraphPalette
   // 팔레트는 ref로 받아 draw()가 매 프레임 최신 색을 읽는다(테마 변경이 리빌딩 없이 즉시 반영).
   paletteRef: { current: GraphPalette }
   spawnRef: { current: { id: string; x: number; y: number } | null }
@@ -40,6 +42,8 @@ interface SimulationParams {
   focusRef: { current: ((id: string) => void) | null }
   nodeClickRef: { current: (n: NodeClickArg) => void }
   linkingRef: { current: LinkSource | null }
+  // 안정화로 멈춘 캔버스 루프를 외부에서 깨우는 핸들. effect가 채우고, 컴포넌트/상호작용 훅이 호출한다.
+  wakeRef: { current: (() => void) | null }
   setSearch: (s: { x: number; y: number } | null) => void
   setQuery: (v: string) => void
   setMenu: (m: { x: number; y: number; node: GNode } | null) => void
@@ -64,11 +68,13 @@ export function useGraphSimulation(params: SimulationParams): void {
     pivots,
     items,
     paletteRef,
+    palette,
     spawnRef,
     nodesRef,
     focusRef,
     nodeClickRef,
     linkingRef,
+    wakeRef,
     setSearch,
     setQuery,
     setMenu,
@@ -137,6 +143,9 @@ export function useGraphSimulation(params: SimulationParams): void {
       canvas.style.width = `${width}px`
       canvas.style.height = `${height}px`
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      // 리사이즈는 캔버스를 비우므로(정착해 멈춰 있어도) 다시 그리도록 깨운다.
+      // 최초 동기 호출 시점엔 wake가 아직 없어 ref는 null → no-op(곧 루프가 시작됨).
+      wakeRef.current?.()
     }
     resize()
     const ro = new ResizeObserver(resize)
@@ -261,6 +270,19 @@ export function useGraphSimulation(params: SimulationParams): void {
 
     // (새 노드 초기 위치는 아래 섹터/슬롯 목표가 정해진 뒤 그 자리에서 시작시킨다 → 리빌딩이 조용함)
 
+    // 형제 정렬 기준: 이름 자연순(숫자 인식 — "2"<"10", "01·02·03"도 올바른 순서로).
+    // 이름이 같으면 id로 안정화해 리빌딩 때마다 같은 자리에 오게 한다.
+    // (배치는 아래에서 12시 방향부터 시계방향으로 이뤄진다.)
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+    const pivotNameById = new Map(visible.pivots.map((p): [string, string] => [p.id, p.name]))
+    const itemNameById = new Map(visible.items.map((i): [string, string] => [i.id, i.name]))
+    const cmpName =
+      (nameOf: (id: string) => string) =>
+      (a: string, b: string): number => {
+        const c = collator.compare(nameOf(a), nameOf(b))
+        return c !== 0 ? c : a < b ? -1 : a > b ? 1 : 0
+      }
+
     // ---------- 영역(섹터) 할당 ----------
     // 트리를 방사형 부채꼴로 나눠 각 서브트리가 자기 각도 구역만 차지하게 한다.
     // 깊이는 반지름(중심에서 멀어짐), 형제는 각도로 분리 → 부모-자식 선이 형제 영역을
@@ -291,7 +313,9 @@ export function useGraphSimulation(params: SimulationParams): void {
       sectorTarget.set(`pivot:${id}`, { x: tx, y: ty })
       const d = Math.hypot(tx - centerX, ty - centerY)
       if (d > maxRadius) maxRadius = d
-      const kids = (childAll.get(id) ?? []).filter((k) => visiblePivotIds.has(k)).sort()
+      const kids = (childAll.get(id) ?? [])
+        .filter((k) => visiblePivotIds.has(k))
+        .sort(cmpName((k) => pivotNameById.get(k) ?? ''))
       if (kids.length === 0) return
       const totalArc = kids.reduce((s, k) => s + arcOf(k), 0) || 1
       const childRadius = childRingRadius(a0, a1, radius + RING, totalArc)
@@ -361,7 +385,7 @@ export function useGraphSimulation(params: SimulationParams): void {
     for (const [pivotId, fileIds] of filesByPivot) {
       const pIdx = idx.get(`pivot:${pivotId}`)
       if (pIdx === undefined) continue
-      fileIds.sort()
+      fileIds.sort(cmpName((f) => itemNameById.get(f) ?? ''))
       const count = fileIds.length
       // 둘레에 파일당 ~22px 확보되도록 반지름 결정(최소 피벗 반지름 + 50)
       const radius = Math.max(nodes[pIdx].r + 50, (count * 22) / (2 * Math.PI))
@@ -370,7 +394,8 @@ export function useGraphSimulation(params: SimulationParams): void {
         if (fIdx === undefined) continue
         fileSlot.set(`item:${fileIds[i]}`, {
           pivotIdx: pIdx,
-          angle: (2 * Math.PI * i) / count,
+          // 12시 방향(-π/2)부터 시계방향으로 배치
+          angle: -Math.PI / 2 + (2 * Math.PI * i) / count,
           radius
         })
       }
@@ -382,12 +407,15 @@ export function useGraphSimulation(params: SimulationParams): void {
     const orphanTarget = new Map<string, { x: number; y: number }>()
     const orphanIds = nodes
       .filter((n) => !sectorTarget.has(n.id) && !fileSlot.has(n.id))
+      .sort((a, b) => {
+        const c = collator.compare(a.label, b.label)
+        return c !== 0 ? c : a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+      })
       .map((n) => n.id)
-      .sort()
     if (orphanIds.length > 0) {
       const orphanRadius = centralExtent + 140 // 중앙 군집 바로 바깥(전체 최대치가 아님)
       orphanIds.forEach((id, i) => {
-        const ang = (2 * Math.PI * i) / orphanIds.length
+        const ang = -Math.PI / 2 + (2 * Math.PI * i) / orphanIds.length
         orphanTarget.set(id, {
           x: centerX + Math.cos(ang) * orphanRadius,
           y: centerY + Math.sin(ang) * orphanRadius
@@ -432,6 +460,7 @@ export function useGraphSimulation(params: SimulationParams): void {
       tweening = true
       focusId = id
       alpha = Math.max(alpha, 0.2)
+      wake()
     }
 
     let dragNode: GNode | null = null
@@ -488,6 +517,7 @@ export function useGraphSimulation(params: SimulationParams): void {
     // - 연결/해제로 구조가 바뀜: 0.12
     // - 위치만 복원되는 변경(이름변경·태그 등): 0.04 (거의 안 움직임)
     let alpha = isFirstBuild ? 0.5 : newIndices.length > 0 ? 0.18 : structuralChange ? 0.12 : 0.04
+    let ke = 1 // 직전 step의 총 운동량(Σ|vx|+|vy|). 정착 판단(루프 정지)에 쓴다.
 
     const BH_THETA2 = BH_THETA * BH_THETA
 
@@ -515,6 +545,7 @@ export function useGraphSimulation(params: SimulationParams): void {
         b.vx -= fx
         b.vy -= fy
       }
+      let energy = 0
       for (const n of nodes) {
         if (n.fixed) {
           n.vx = 0
@@ -553,7 +584,9 @@ export function useGraphSimulation(params: SimulationParams): void {
         else if (n.vy < -MAX_V) n.vy = -MAX_V
         n.x += n.vx
         n.y += n.vy
+        energy += Math.abs(n.vx) + Math.abs(n.vy)
       }
+      ke = energy
       if (alpha > 0.03) alpha *= 0.998
     }
 
@@ -563,6 +596,9 @@ export function useGraphSimulation(params: SimulationParams): void {
       ctx.translate(offsetX, offsetY)
       ctx.scale(scale, scale)
       const pal = paletteRef.current // 매 프레임 최신 팔레트(테마 즉시 반영)
+      // 라벨 폰트 문자열은 scale에만 의존(프레임 내 상수) → 노드 루프 밖에서 1회만 만든다.
+      const pivotFont = `600 ${13 / scale}px 'Segoe UI', 'Malgun Gothic', sans-serif`
+      const fileFont = `${10 / scale}px 'Segoe UI', 'Malgun Gothic', sans-serif`
 
       // 호버한 피벗의 하위 전체(자식·손자… 서브트리)를 강조 대상으로 모은다.
       // 엣지는 a=부모/원본, b=자식/대상으로 저장되므로, 자식 방향(e.a==현재)으로만 내려간다.
@@ -682,7 +718,7 @@ export function useGraphSimulation(params: SimulationParams): void {
         const labelAlpha = zoomLabel ? 1 : n.h
         if (labelAlpha > 0.02) {
           const fontSize = (n.kind === 'pivot' ? 13 : 10) / scale
-          ctx.font = `${n.kind === 'pivot' ? '600 ' : ''}${fontSize}px 'Segoe UI', 'Malgun Gothic', sans-serif`
+          ctx.font = n.kind === 'pivot' ? pivotFont : fileFont
           ctx.globalAlpha = labelAlpha * na
           ctx.fillStyle = n.h > 0.5 ? pal.labelHover : pal.label
           ctx.textAlign = 'center'
@@ -738,6 +774,17 @@ export function useGraphSimulation(params: SimulationParams): void {
     }
 
     let raf = 0
+    // 정착(거의 안 움직임) + 상호작용 없음이면 RAF를 멈춰 유휴 시 CPU 점유를 0으로 만든다.
+    // grace 프레임(≈0.75s)을 둬, 호버 페이드·포커스 튠 같은 짧은 잔여 애니메이션이 중간에 끊기지 않게 한다.
+    const SETTLE_KE = Math.max(0.5, nodes.length * 0.03)
+    let idleFrames = 0
+    const isActive = (): boolean =>
+      ke > SETTLE_KE ||
+      tweening ||
+      dragNode !== null ||
+      panning ||
+      hoverNode !== null ||
+      linkingRef.current !== null
     const loop = () => {
       step()
       if (tweening) {
@@ -762,9 +809,29 @@ export function useGraphSimulation(params: SimulationParams): void {
         }
       }
       draw()
-      raf = requestAnimationFrame(loop)
+      if (isActive()) idleFrames = 45
+      else idleFrames--
+      raf = idleFrames > 0 ? requestAnimationFrame(loop) : 0
     }
+    // 상호작용/데이터·테마 변경이 생기면 멈춰 있던 루프를 다시 가동한다.
+    const wake = (): void => {
+      idleFrames = 45
+      if (raf === 0) raf = requestAnimationFrame(loop)
+    }
+    wakeRef.current = wake
     raf = requestAnimationFrame(loop)
+    // 창이 가려지면(최소화·다른 탭) 루프를 멈추고, 다시 보이면 깨운다.
+    const onVisibility = (): void => {
+      if (document.hidden) {
+        if (raf !== 0) {
+          cancelAnimationFrame(raf)
+          raf = 0
+        }
+      } else {
+        wake()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
 
     const onMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return
@@ -783,6 +850,7 @@ export function useGraphSimulation(params: SimulationParams): void {
       }
       lastX = sx
       lastY = sy
+      wake()
     }
 
     const onContextMenu = (e: MouseEvent) => {
@@ -801,9 +869,11 @@ export function useGraphSimulation(params: SimulationParams): void {
         setSearch({ x: sx, y: sy })
         setQuery('')
       }
+      wake()
     }
 
     const onMouseMove = (e: MouseEvent) => {
+      wake()
       const rect = canvas.getBoundingClientRect()
       const sx = e.clientX - rect.left
       const sy = e.clientY - rect.top
@@ -837,6 +907,7 @@ export function useGraphSimulation(params: SimulationParams): void {
         dragNode = null
       }
       panning = false
+      wake()
     }
 
     const onWheel = (e: WheelEvent) => {
@@ -850,6 +921,18 @@ export function useGraphSimulation(params: SimulationParams): void {
       offsetX = sx - ((sx - offsetX) / scale) * newScale
       offsetY = sy - ((sy - offsetY) / scale) * newScale
       scale = newScale
+      wake()
+    }
+
+    // 포인터가 캔버스를 벗어나거나(엣지로 빠져나감) 창이 포커스를 잃으면 호버를 해제한다.
+    // 안 그러면 hoverNode가 남아 isActive()가 계속 true → 루프가 안 멈추고 CPU를 문다.
+    // wake로 강조를 페이드아웃시킨 뒤, hoverNode=null이라 다음 grace에서 정상 정착한다.
+    const onPointerLeave = (): void => {
+      if (hoverNode) {
+        hoverNode = null
+        canvas.style.cursor = 'grab'
+      }
+      wake()
     }
 
     canvas.addEventListener('mousedown', onMouseDown)
@@ -857,6 +940,8 @@ export function useGraphSimulation(params: SimulationParams): void {
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup', onMouseUp)
     canvas.addEventListener('wheel', onWheel, { passive: false })
+    canvas.addEventListener('mouseleave', onPointerLeave)
+    window.addEventListener('blur', onPointerLeave)
 
     return () => {
       // 현재 보이는 노드 위치를 저장(집중 보기로 숨겨진 노드의 좌표는 유지해야 하므로
@@ -873,12 +958,21 @@ export function useGraphSimulation(params: SimulationParams): void {
       cancelAnimationFrame(raf)
       ro.disconnect()
       focusRef.current = null
+      wakeRef.current = null
+      document.removeEventListener('visibilitychange', onVisibility)
       canvas.removeEventListener('mousedown', onMouseDown)
       canvas.removeEventListener('contextmenu', onContextMenu)
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mouseup', onMouseUp)
       canvas.removeEventListener('wheel', onWheel)
+      canvas.removeEventListener('mouseleave', onPointerLeave)
+      window.removeEventListener('blur', onPointerLeave)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, links, itemLinks, pivotLinks, cacheKey, rootMinSubtree, pivots, items])
+
+  // 테마/액센트(팔레트)가 바뀌면, 안정화로 멈춰 있던 캔버스 루프를 깨워 새 색으로 다시 그린다.
+  useEffect(() => {
+    wakeRef.current?.()
+  }, [palette])
 }

@@ -158,9 +158,9 @@ export default function Onboarding({
                 <IconGraph size={18} /> {t('onboard.graph.title')}
               </h2>
               <p className="onboard-desc">{t('onboard.graph.desc')}</p>
-              <div className="setting-row">
-                <div className="setting-label">{t('onboard.graph.count')}</div>
-                <div className="setting-control">
+              <div className="onboard-row">
+                <div className="set-row-label">{t('onboard.graph.count')}</div>
+                <div className="set-row-control">
                   <input
                     type="range"
                     min={1}
