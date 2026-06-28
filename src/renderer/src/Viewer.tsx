@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import Papa from 'papaparse'
 import hljs from 'highlight.js/lib/core'
@@ -192,7 +192,15 @@ export default function Viewer({
         {error && <div className="error">{error}</div>}
         {item.type === 'md' && text !== null && (
           <div className="markdown-body">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              // 마크다운에 박은 data:image(예: 애니메이션 SVG 데모)를 그대로 렌더(나머진 기본 보안 변환).
+              urlTransform={(url) =>
+                url.startsWith('data:image/') ? url : defaultUrlTransform(url)
+              }
+            >
+              {text}
+            </ReactMarkdown>
           </div>
         )}
         {item.type === 'csv' && text !== null && <CsvTable text={text} />}
